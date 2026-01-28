@@ -735,6 +735,70 @@ Control label appearance:
 )
 ```
 
+= Custom Environments
+
+Create your own environment types with independent counters using `new-env`:
+
+```typst
+// Create custom environments
+#let conjecture = new-env("Conjecture", base: "theorem")
+#let propriete = new-env("Propriété", base: "definition", numbered: false)
+#let formule = new-env("Formule", base: "lemma", color: green)
+#let axiom = new-env("Axiom", base: "theorem", numbered: true)
+
+// Use them like built-in environments
+#conjecture[Every even number greater than 2 is the sum of two primes.]
+#conjecture(name: "Goldbach")[Famous unsolved problem.]
+#propriete[A property without number.]
+#formule[The quadratic formula: $x = (-b plus.minus sqrt(b^2-4a c))/(2a)$]
+```
+
+#let conjecture = new-env("Conjecture", base: "theorem")
+#let axiom = new-env("Axiom", base: "definition")
+
+#beautiframe-setup(style: "boxed", theorem-variant: "titled", definition-variant: "titled")
+#beautiframe-reset()
+
+#conjecture[Every even number greater than 2 is the sum of two primes.]
+
+#conjecture(name: "Goldbach")[Famous unsolved problem in number theory.]
+
+#axiom[Two points determine a unique line.]
+
+== Parameters
+
+```typst
+#let my-env = new-env(
+  "Label",           // Display label (required)
+  base: "theorem",   // Inherit style from: theorem, definition, lemma, etc.
+  numbered: true,    // Auto-number by default
+  color: none,       // Optional custom color
+)
+```
+
+== Dynamic Labels (Plural Forms)
+
+For environments that need dynamic labels (e.g., singular/plural), create wrapper functions:
+
+```typst
+#let definition(plural: false, ..args, body) = {
+  let label = if plural { "Définitions" } else { "Définition" }
+  beautiframe-setup(definition-label: label)
+  env(type: "definition", ..args, body)
+}
+
+// Usage
+#definition[A single definition.]
+#definition(plural: true)[Multiple definitions grouped together.]
+```
+
+== Resetting Custom Counters
+
+```typst
+#reset-env("Conjecture")  // Reset specific custom environment
+#beautiframe-reset()      // Reset all built-in counters
+```
+
 #pagebreak()
 
 = API Reference

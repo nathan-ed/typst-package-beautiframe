@@ -514,6 +514,72 @@
 #let proof(body) = env(type: "proof", body)
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CUSTOM ENVIRONMENT FACTORY
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Create a custom environment with its own counter
+/// Returns a function that can be called like the built-in environments
+///
+/// Example:
+/// ```typst
+/// #let conjecture = new-env("Conjecture", base: "theorem")
+/// #let propriete = new-env("Propriété", base: "definition", numbered: false)
+/// #let formule = new-env("Formule", base: "lemma", color: blue)
+///
+/// #conjecture[This is a conjecture.]
+/// #conjecture(name: "Goldbach")[Every even number > 2 is the sum of two primes.]
+/// ```
+///
+/// Parameters:
+/// - label: The display label (e.g., "Conjecture", "Propriété")
+/// - base: Which built-in env to inherit styling from ("theorem", "definition", etc.)
+/// - numbered: Whether to auto-number (default: true)
+/// - color: Optional custom color for this environment
+#let new-env(
+  label,
+  base: "theorem",
+  numbered: true,
+  color: none,
+) = {
+  // Create a unique counter for this environment
+  let env-counter = counter("beautiframe-custom-" + label)
+
+  // Return the environment function
+  (name: none, number: auto, body) => {
+    // Handle numbering
+    let actual-number = number
+    if number == auto {
+      if numbered {
+        env-counter.step()
+        actual-number = context env-counter.get().first()
+      } else {
+        actual-number = none
+      }
+    }
+
+    // Temporarily set the label for the base type
+    let label-key = base + "-label"
+
+    // Apply color if specified
+    if color != none {
+      let color-key = base + "-color"
+      beautiframe-setup(..((label-key): label, (color-key): color))
+    } else {
+      beautiframe-setup(..((label-key): label))
+    }
+
+    // Render using the base environment type
+    env(type: base, name: name, number: actual-number, body)
+  }
+}
+
+/// Reset a custom environment counter
+/// Example: #reset-env("Conjecture")
+#let reset-env(label) = {
+  counter("beautiframe-custom-" + label).update(0)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // QED SYMBOL PRESETS
 // ═══════════════════════════════════════════════════════════════════════════
 
