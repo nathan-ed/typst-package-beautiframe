@@ -51,7 +51,7 @@
 == Quick Start
 
 ```typst
-#import "@local/beautiframe:0.1.0": *
+#import "@preview/beautiframe:0.1.0": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -776,20 +776,35 @@ Create your own environment types with independent counters using `new-env`:
 )
 ```
 
-== Dynamic Labels (Plural Forms)
+== Plural Forms
 
-For environments that need dynamic labels (e.g., singular/plural), create wrapper functions:
+All environments support a `plural` parameter. Default plurals are provided for English and all language presets:
 
 ```typst
-#let definition(plural: false, ..args, body) = {
-  let label = if plural { "Définitions" } else { "Définition" }
-  beautiframe-setup(definition-label: label)
-  env(type: "definition", ..args, body)
-}
+#theorem(plural: true)[Multiple theorems grouped together.]
+#definition(plural: true)[Several related definitions.]
+```
 
-// Usage
-#definition[A single definition.]
-#definition(plural: true)[Multiple definitions grouped together.]
+#beautiframe-setup(style: "boxed", theorem-variant: "titled")
+#beautiframe-reset()
+
+#theorem[A single theorem.]
+
+#theorem(plural: true)[Multiple theorems can be grouped in one box.]
+
+Language presets automatically set the correct plural forms:
+
+```typst
+#preset-french()  // Sets: Théorèmes, Définitions, Lemmes, etc.
+#preset-german()  // Sets: Sätze, Definitionen, Lemmata, etc.
+#preset-spanish() // Sets: Teoremas, Definiciones, Lemas, etc.
+```
+
+Custom environments also support plurals:
+
+```typst
+#let conjecture = new-env("Conjecture", plural: "Conjectures", base: "theorem")
+#conjecture(plural: true)[Two famous conjectures.]
 ```
 
 == Resetting Custom Counters

@@ -99,7 +99,7 @@
   counter-reset: "manual",           // "manual", "section", "chapter"
 
   // ─────────────────────────────────────────────────────────────────────────
-  // LABELS (English default)
+  // LABELS (English default) - Singular
   // ─────────────────────────────────────────────────────────────────────────
   theorem-label: "Theorem",
   definition-label: "Definition",
@@ -109,6 +109,17 @@
   remark-label: "Remark",
   example-label: "Example",
   proof-label: "Proof",
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LABELS - Plural (used when plural: true)
+  // ─────────────────────────────────────────────────────────────────────────
+  theorem-plural: "Theorems",
+  definition-plural: "Definitions",
+  lemma-plural: "Lemmas",
+  proposition-plural: "Propositions",
+  corollary-plural: "Corollaries",
+  remark-plural: "Remarks",
+  example-plural: "Examples",
 
   // ─────────────────────────────────────────────────────────────────────────
   // QED / PROOF
@@ -333,7 +344,7 @@
   numbering-format: none,
   link-to-section: none,
   counter-reset: none,
-  // Labels
+  // Labels (singular)
   theorem-label: none,
   definition-label: none,
   lemma-label: none,
@@ -342,6 +353,14 @@
   remark-label: none,
   example-label: none,
   proof-label: none,
+  // Labels (plural)
+  theorem-plural: none,
+  definition-plural: none,
+  lemma-plural: none,
+  proposition-plural: none,
+  corollary-plural: none,
+  remark-plural: none,
+  example-plural: none,
   // QED
   qed-symbol: none,
   // Advanced
@@ -405,7 +424,7 @@
     if numbering-format != none { new-cfg.insert("numbering-format", numbering-format) }
     if link-to-section != none { new-cfg.insert("link-to-section", link-to-section) }
     if counter-reset != none { new-cfg.insert("counter-reset", counter-reset) }
-    // Labels
+    // Labels (singular)
     if theorem-label != none { new-cfg.insert("theorem-label", theorem-label) }
     if definition-label != none { new-cfg.insert("definition-label", definition-label) }
     if lemma-label != none { new-cfg.insert("lemma-label", lemma-label) }
@@ -414,6 +433,14 @@
     if remark-label != none { new-cfg.insert("remark-label", remark-label) }
     if example-label != none { new-cfg.insert("example-label", example-label) }
     if proof-label != none { new-cfg.insert("proof-label", proof-label) }
+    // Labels (plural)
+    if theorem-plural != none { new-cfg.insert("theorem-plural", theorem-plural) }
+    if definition-plural != none { new-cfg.insert("definition-plural", definition-plural) }
+    if lemma-plural != none { new-cfg.insert("lemma-plural", lemma-plural) }
+    if proposition-plural != none { new-cfg.insert("proposition-plural", proposition-plural) }
+    if corollary-plural != none { new-cfg.insert("corollary-plural", corollary-plural) }
+    if remark-plural != none { new-cfg.insert("remark-plural", remark-plural) }
+    if example-plural != none { new-cfg.insert("example-plural", example-plural) }
     // QED
     if qed-symbol != none { new-cfg.insert("qed-symbol", qed-symbol) }
     // Advanced
@@ -504,13 +531,55 @@
 // CONVENIENCE FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
-#let theorem(name: none, number: auto, body) = env(type: "theorem", name: name, number: number, body)
-#let definition(name: none, number: auto, body) = env(type: "definition", name: name, number: number, body)
-#let lemma(name: none, number: auto, body) = env(type: "lemma", name: name, number: number, body)
-#let proposition(name: none, number: auto, body) = env(type: "proposition", name: name, number: number, body)
-#let corollary(name: none, number: auto, body) = env(type: "corollary", name: name, number: number, body)
-#let remark(name: none, number: none, body) = env(type: "remark", name: name, number: number, body)
-#let example(name: none, number: auto, body) = env(type: "example", name: name, number: number, body)
+#let theorem(name: none, number: auto, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(theorem-label: cfg.theorem-plural)
+  }
+  env(type: "theorem", name: name, number: number, body)
+}
+#let definition(name: none, number: auto, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(definition-label: cfg.definition-plural)
+  }
+  env(type: "definition", name: name, number: number, body)
+}
+#let lemma(name: none, number: auto, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(lemma-label: cfg.lemma-plural)
+  }
+  env(type: "lemma", name: name, number: number, body)
+}
+#let proposition(name: none, number: auto, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(proposition-label: cfg.proposition-plural)
+  }
+  env(type: "proposition", name: name, number: number, body)
+}
+#let corollary(name: none, number: auto, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(corollary-label: cfg.corollary-plural)
+  }
+  env(type: "corollary", name: name, number: number, body)
+}
+#let remark(name: none, number: none, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(remark-label: cfg.remark-plural)
+  }
+  env(type: "remark", name: name, number: number, body)
+}
+#let example(name: none, number: auto, plural: false, body) = context {
+  if plural {
+    let cfg = beautiframe-config.get()
+    beautiframe-setup(example-label: cfg.example-plural)
+  }
+  env(type: "example", name: name, number: number, body)
+}
 #let proof(body) = env(type: "proof", body)
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -523,20 +592,23 @@
 /// Example:
 /// ```typst
 /// #let conjecture = new-env("Conjecture", base: "theorem")
-/// #let propriete = new-env("Propriété", base: "definition", numbered: false)
-/// #let formule = new-env("Formule", base: "lemma", color: blue)
+/// #let propriete = new-env("Propriété", plural: "Propriétés", base: "definition", numbered: false)
+/// #let formule = new-env("Formule", plural: "Formules", base: "lemma", color: blue)
 ///
 /// #conjecture[This is a conjecture.]
 /// #conjecture(name: "Goldbach")[Every even number > 2 is the sum of two primes.]
+/// #propriete(plural: true)[Multiple properties here.]
 /// ```
 ///
 /// Parameters:
 /// - label: The display label (e.g., "Conjecture", "Propriété")
+/// - plural: The plural form of the label (default: same as label)
 /// - base: Which built-in env to inherit styling from ("theorem", "definition", etc.)
 /// - numbered: Whether to auto-number (default: true)
 /// - color: Optional custom color for this environment
 #let new-env(
   label,
+  plural: none,
   base: "theorem",
   numbered: true,
   color: none,
@@ -544,8 +616,11 @@
   // Create a unique counter for this environment
   let env-counter = counter("beautiframe-custom-" + label)
 
+  // Default plural to label if not specified
+  let plural-label = if plural == none { label } else { plural }
+
   // Return the environment function
-  (name: none, number: auto, body) => {
+  (name: none, number: auto, plural: false, body) => {
     // Handle numbering
     let actual-number = number
     if number == auto {
@@ -557,15 +632,18 @@
       }
     }
 
+    // Choose singular or plural label
+    let display-label = if plural { plural-label } else { label }
+
     // Temporarily set the label for the base type
     let label-key = base + "-label"
 
     // Apply color if specified
     if color != none {
       let color-key = base + "-color"
-      beautiframe-setup(..((label-key): label, (color-key): color))
+      beautiframe-setup(..((label-key): display-label, (color-key): color))
     } else {
-      beautiframe-setup(..((label-key): label))
+      beautiframe-setup(..((label-key): display-label))
     }
 
     // Render using the base environment type
@@ -604,6 +682,14 @@
   remark-label: "Remarque",
   example-label: "Exemple",
   proof-label: "Preuve",
+  // Plurals
+  theorem-plural: "Théorèmes",
+  definition-plural: "Définitions",
+  lemma-plural: "Lemmes",
+  proposition-plural: "Propositions",
+  corollary-plural: "Corollaires",
+  remark-plural: "Remarques",
+  example-plural: "Exemples",
 )
 
 #let preset-german() = beautiframe-setup(
@@ -615,6 +701,14 @@
   remark-label: "Bemerkung",
   example-label: "Beispiel",
   proof-label: "Beweis",
+  // Plurals
+  theorem-plural: "Sätze",
+  definition-plural: "Definitionen",
+  lemma-plural: "Lemmata",
+  proposition-plural: "Propositionen",
+  corollary-plural: "Korollare",
+  remark-plural: "Bemerkungen",
+  example-plural: "Beispiele",
 )
 
 #let preset-spanish() = beautiframe-setup(
@@ -626,6 +720,14 @@
   remark-label: "Observación",
   example-label: "Ejemplo",
   proof-label: "Demostración",
+  // Plurals
+  theorem-plural: "Teoremas",
+  definition-plural: "Definiciones",
+  lemma-plural: "Lemas",
+  proposition-plural: "Proposiciones",
+  corollary-plural: "Corolarios",
+  remark-plural: "Observaciones",
+  example-plural: "Ejemplos",
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
