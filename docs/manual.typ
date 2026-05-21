@@ -1,4 +1,4 @@
-#import "@preview/beautiframe:0.1.0": *
+#import "@preview/beautiframe:0.3.0": *
 
 #set document(title: "Beautiframe Manual", author: "Nathan Scheinmann")
 #set page(
@@ -20,7 +20,7 @@
   #v(0.5em)
   #text(size: 16pt, fill: gray)[Beautiful Theorem-Like Environments for Typst]
   #v(1em)
-  #text(size: 12pt)[Version 0.1.0]
+  #text(size: 12pt)[Version 0.3.0]
   #v(2cm)
   #text(size: 11pt)[Nathan Scheinmann]
   #v(4cm)
@@ -38,7 +38,7 @@
 
 == Features
 
-- *7 distinct styles*: classic, modern, elegant, colorful, boxed, minimal, academic
+- *9 distinct styles*: classic, modern, elegant, colorful, boxed, minimal, academic, *bw*, *cours*
 - *6 variants per style*: prominent, standard, subtle, accent, minimal, inline
 - *Flexible mapping*: Assign any variant to any environment type
 - *Independent counters*: Each environment type has its own counter
@@ -46,12 +46,15 @@
 - *QED symbol presets*: □, ■, ∎, CQFD, //, Q.E.D.
 - *Color themes*: Pre-built themes (ocean, forest, sunset, lavender)
 - *Language presets*: French, German, Spanish
+- *French Math Preset*: one-call setup for French secondary math courses
+- *QR sidebar*: attach a QR code column to any environment
+- *Student fill space*: blank, ruled lines, or dot grid appended inside any environment
 - *Print-friendly modes*: color, grayscale, black & white
 
 == Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.1.0": *
+#import "@preview/beautiframe:0.3.0": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -64,6 +67,18 @@
 #proof[
   The proof is left as an exercise.
 ]
+```
+
+=== French Math Quick Start
+
+```typst
+#import "@preview/beautiframe:0.3.0": *
+
+#preset-french-math()   // or #preset-french-math-bw()
+
+#theoreme(name: "Pythagore")[Dans un triangle rectangle: $a^2 + b^2 = c^2$]
+#definitionfr[Une fonction continue préserve les limites.]
+#pratique(space: "lines", space-height: 3cm)[Calculer la dérivée de $f(x) = x^3$.]
 ```
 
 #pagebreak()
@@ -91,8 +106,12 @@ Beautiframe provides 8 environment types:
 == Basic Usage
 
 Each environment function accepts:
-- `name`: Optional name (e.g., "Pythagorean")
+- `name`: Optional name (e.g., `"Pythagorean"` or `[Pythagorean]`)
+- `title`: Synonym for `name` — both are accepted, `name` takes priority
 - `number`: `auto` (default), `none`, or custom value
+- `qr`: URL string to attach a QR code sidebar (requires `qr-renderer` configured)
+- `space`: `"empty"`, `"lines"`, or `"grid"` — adds fill space for student work
+- `space-height`: Height of the fill area (default `3cm`)
 - `body`: The content
 
 ```typst
@@ -100,6 +119,22 @@ Each environment function accepts:
   There are no positive integers $a$, $b$, $c$ such that
   $a^n + b^n = c^n$ for $n > 2$.
 ]
+
+// title: is accepted as a synonym for name:
+#theorem(title: "Fermat's Last")[
+  There are no positive integers $a$, $b$, $c$ such that
+  $a^n + b^n = c^n$ for $n > 2$.
+]
+```
+
+*Important:* When the name contains math, use content syntax `[...]` instead of string `"..."`, because strings do not process math markup:
+
+```typst
+// Wrong — $f$ appears as literal text
+#theorem(name: "Continuity of $f$")[...]
+
+// Correct
+#theorem(name: [$f$ is continuous])[...]
 ```
 
 #beautiframe-setup(style: "classic")
@@ -160,7 +195,7 @@ Reset all counters manually:
 
 = Styles
 
-Beautiframe includes 7 visual styles. Each style provides 6 variants.
+Beautiframe includes 9 visual styles. Each style provides 6 variants.
 
 == Classic Style
 
@@ -278,6 +313,52 @@ Formal research paper style matching AMS/journal conventions.
 #theorem(name: "Academic")[In a right triangle: $a^2 + b^2 = c^2$]
 #definition[A continuous function preserves limits.]
 
+== BW Style
+
+Black-and-white two-column layout for printed French math courses (Gymnomath / coursCollège). A 3.35 cm right-aligned label column is separated from the content column by a horizontal rule (standard variant) or a box border (boxed/prominent variants).
+
+Variants: `standard` (side-block with rule), `boxed` (light rect), `prominent` (thicker rect, for théorèmes), `accent` (env-color stroke and label), `minimal` (inline label), `inline`, `proof` (with QED).
+
+```typst
+#preset-french-math-bw()
+#theoreme(name: "Pythagore")[Dans un triangle rectangle: $a^2 + b^2 = c^2$]
+#definitionfr[Une fonction continue préserve les limites.]
+#remarque[La réciproque est généralement fausse.]
+#preuve[Par application directe de la définition.]
+```
+
+#preset-french-math-bw()
+#beautiframe-reset-french-math()
+
+#theoreme(name: "Pythagore")[Dans un triangle rectangle: $a^2 + b^2 = c^2$]
+#definitionfr[Une fonction continue préserve les limites.]
+#remarque[La réciproque est généralement fausse.]
+#preuve[Par application directe de la définition.]
+
+== Cours Style
+
+French course style with a 2 cm label column that overhangs 1 cm into the left margin, and content framed with a thin left border. Optimised for A4 course sheets with 2.2 cm margins. Blue accent color by default.
+
+Variants: `standard` (accent-colored border and label), `accent` (per-env color), `subtle` (muted), `minimal` (inline, for remarques), `inline`, `proof` (with QED).
+
+```typst
+#preset-french-math()
+#theoreme(name: "Valeurs intermédiaires")[
+  Si $f$ est continue sur $[a ; b]$, pour tout $y$ entre $f(a)$ et $f(b)$ il existe $c$ tel que $f(c) = y$.
+]
+#definitionfr[Une suite converge si elle admet une limite finie.]
+#remarque[La réciproque est fausse en général.]
+```
+
+#preset-french-math()
+#beautiframe-reset-french-math()
+
+#theoreme(name: "Valeurs intermédiaires")[
+  Si $f$ est continue sur $[a ; b]$, pour tout $y$ entre $f(a)$ et $f(b)$ il existe $c$ tel que $f(c) = y$.
+]
+#definitionfr[Une suite converge si elle admet une limite finie.]
+#remarque[La réciproque est fausse en général.]
+
 #pagebreak()
 
 = Variants
@@ -318,6 +399,39 @@ Map any variant to any environment type:
   example-variant: "accent",     // Examples use their color
 )
 ```
+
+== Setting All Variants at Once
+
+The `default-variant` parameter sets *all* 7 environment variants in a single call. Individual overrides are applied after, so they win:
+
+```typst
+// Make every environment use the boxed variant
+#beautiframe-setup(default-variant: "boxed")
+
+// All boxed, except theorems which get prominent
+#beautiframe-setup(default-variant: "boxed", theorem-variant: "prominent")
+```
+
+This is useful when switching styles (e.g., `bw` → `cours`) and wanting a uniform appearance, or when preparing a worksheet where all environments should have the same fill-space variant.
+
+#beautiframe-setup(style: "classic")
+#beautiframe-reset()
+
+*All `minimal` via `default-variant`:*
+#beautiframe-setup(default-variant: "minimal")
+#theorem(name: "Sample")[Content.]
+#definition[Content.]
+#remark[Content.]
+
+*All `standard`, theorem overridden to `prominent`:*
+#beautiframe-setup(default-variant: "standard", theorem-variant: "prominent")
+#beautiframe-reset()
+#theorem(name: "Sample")[Content.]
+#definition[Content.]
+#remark[Content.]
+
+#beautiframe-setup(style: "classic")
+#beautiframe-reset()
 
 == Visual Gallery: All Variants × All Styles
 
@@ -454,6 +568,43 @@ Map any variant to any environment type:
   [*Standard:* #beautiframe-setup(theorem-variant: "standard") #theorem(name: "Name")[Sample text.]],
   [*Subtle:* #beautiframe-setup(theorem-variant: "subtle") #theorem(name: "Name")[Sample text.]],
   [*Accent:* #beautiframe-setup(theorem-variant: "accent") #theorem(name: "Name")[Sample text.]],
+  [*Minimal:* #beautiframe-setup(theorem-variant: "minimal") #theorem(name: "Name")[Sample text.]],
+  [*Inline:* #beautiframe-setup(theorem-variant: "inline") #theorem(name: "Name")[Sample text.]],
+)
+
+#pagebreak()
+
+=== BW Style
+
+#preset-french-math-bw()
+#beautiframe-reset-french-math()
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1em,
+  row-gutter: 0.8em,
+  [*Prominent:* #beautiframe-setup(theorem-variant: "prominent") #theorem(name: "Name")[Sample text.]],
+  [*Standard:* #beautiframe-setup(theorem-variant: "standard") #theorem(name: "Name")[Sample text.]],
+  [*Boxed:* #beautiframe-setup(theorem-variant: "boxed") #theorem(name: "Name")[Sample text.]],
+  [*Accent:* #beautiframe-setup(theorem-variant: "accent") #theorem(name: "Name")[Sample text.]],
+  [*Minimal:* #beautiframe-setup(theorem-variant: "minimal") #theorem(name: "Name")[Sample text.]],
+  [*Inline:* #beautiframe-setup(theorem-variant: "inline") #theorem(name: "Name")[Sample text.]],
+)
+
+#pagebreak()
+
+=== Cours Style
+
+#preset-french-math()
+#beautiframe-reset-french-math()
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1em,
+  row-gutter: 0.8em,
+  [*Standard:* #beautiframe-setup(theorem-variant: "standard") #theorem(name: "Name")[Sample text.]],
+  [*Accent:* #beautiframe-setup(theorem-variant: "accent") #theorem(name: "Name")[Sample text.]],
+  [*Subtle:* #beautiframe-setup(theorem-variant: "subtle") #theorem(name: "Name")[Sample text.]],
   [*Minimal:* #beautiframe-setup(theorem-variant: "minimal") #theorem(name: "Name")[Sample text.]],
   [*Inline:* #beautiframe-setup(theorem-variant: "inline") #theorem(name: "Name")[Sample text.]],
 )
@@ -814,6 +965,165 @@ Custom environments also support plurals:
 #beautiframe-reset()      // Reset all built-in counters
 ```
 
+= French Math Preset
+
+The French math preset configures beautiframe in a single call for French secondary and post-secondary math courses.
+
+== Preset Functions
+
+```typst
+// Color version — cours style, blue accent, bold labels, QED square
+#preset-french-math()
+
+// Black-and-white version — bw style, 8.4pt labels, luma palette
+#preset-french-math-bw()
+
+// Reset all counters including custom French environments
+#beautiframe-reset-french-math()
+```
+
+== French Environments
+
+All French environments accept `name:` / `title:` (alias), `qr:`, `space:`, `space-height:`.
+
+#table(
+  columns: (auto, auto, auto, auto),
+  align: (left, left, left, center),
+  [*Function*], [*Label*], [*Base*], [*Numbered*],
+  [`theoreme`], [Théorème], [theorem], [Yes],
+  [`definitionfr`], [Définition], [definition], [Yes],
+  [`propositionfr`], [Proposition], [proposition], [Yes],
+  [`exemplefr` / `exemple`], [Exemple], [example], [Yes],
+  [`remarque`], [Remarque], [remark], [No],
+  [`corollaire`], [Corollaire], [corollary], [Yes],
+  [`preuve`], [Preuve], [proof], [No],
+  [`pratique`], [En pratique], [example], [Yes],
+  [`propriete`], [Propriété], [corollary], [No],
+  [`formule`], [Formule], [lemma], [Yes],
+  [`formules(...)`], [Formules], [lemma], [Yes],
+  [`methode`], [Méthode], [proposition], [Yes],
+  [`notation(...)`], [Notation], [remark], [No],
+  [`discussion(...)`], [Discussion], [remark], [No],
+)
+
+== Example
+
+```typst
+#import "@preview/beautiframe:0.3.0": *
+#preset-french-math()
+
+#theoreme(name: "Pythagore")[
+  Dans tout triangle rectangle d'hypoténuse $c$: $a^2 + b^2 = c^2$.
+]
+
+#definitionfr[Une suite converge si elle admet une limite finie.]
+
+#propriete[Toute suite monotone et bornée converge.]
+
+#formule[
+  $x = display((-b plus.minus sqrt(b^2 - 4a c)) / (2a))$
+]
+
+#pratique(space: "lines", space-height: 3cm)[
+  Résoudre $2x^2 - 5x + 3 = 0$.
+]
+
+#preuve[Par calcul direct avec le discriminant.]
+```
+
+#preset-french-math()
+#beautiframe-reset-french-math()
+
+#theoreme(name: "Pythagore")[
+  Dans tout triangle rectangle d'hypoténuse $c$: $a^2 + b^2 = c^2$.
+]
+
+#definitionfr[Une suite converge si elle admet une limite finie.]
+
+#propriete[Toute suite monotone et bornée converge.]
+
+#formule[
+  $x = display((-b plus.minus sqrt(b^2 - 4 a c)) / (2a))$
+]
+
+#notation[On note $f'$ la dérivée de $f$, et $f^((n))$ la dérivée $n$-ième.]
+
+#discussion[La condition $a > 0$ est nécessaire mais pas suffisante.]
+
+#pratique(space: "lines", space-height: 2.5cm)[
+  Résoudre $2x^2 - 5x + 3 = 0$.
+]
+
+#preuve[Par calcul direct avec le discriminant.]
+
+#pagebreak()
+
+= QR Sidebar
+
+Any environment can display a rendered QR code (or any content) in a right sidebar column.
+
+== Configuration
+
+```typst
+// Configure once in your preamble
+#beautiframe-setup(
+  qr-renderer: url => image.decode(
+    tiaoma.qrcode(url, options: (border: 0)),
+    format: "svg", width: 1.85cm
+  ),
+  qr-width: 1.85cm,
+)
+```
+
+The `qr-renderer` key accepts a function `url => content`. When set to `none` (default), no sidebar is shown even if `qr:` is passed.
+
+== Usage
+
+```typst
+#theorem(qr: "https://example.com/proof")[
+  In a right triangle: $a^2 + b^2 = c^2$.
+]
+
+#definitionfr(qr: "https://wiki.example.com/continuity")[
+  Une fonction continue préserve les limites.
+]
+```
+
+The QR sidebar works with all environments including custom ones created with `new-env`.
+
+#pagebreak()
+
+= Student Fill Space
+
+Append a blank fill area inside any environment for students to write their answers.
+
+== Parameters
+
+- `space:` — `"empty"` (blank block), `"lines"` (8 mm ruled lines), `"grid"` (5 mm dot grid)
+- `space-height:` — height of the fill area (default: `3cm`)
+
+== Examples
+
+```typst
+// Blank area
+#pratique(space: "empty", space-height: 2cm)[Define continuity.]
+
+// Ruled lines
+#pratique(space: "lines", space-height: 4cm)[Solve $2x - 5 = 7$.]
+
+// Dot grid
+#exemple(space: "grid", space-height: 5cm)[Sketch $f(x) = x^2$.]
+```
+
+#preset-french-math-bw()
+#beautiframe-reset-french-math()
+
+*Ruled lines (`space: "lines"`, height 3 cm):*
+#pratique(space: "lines", space-height: 3cm)[Calculer la dérivée de $f(x) = 3x^2 - 2x + 1$.]
+
+*Dot grid (`space: "grid"`, height 3.5 cm):*
+#exemple(space: "grid", space-height: 3.5cm)[Représenter $f(x) = -x^2 + 4$ sur $[-3 ; 3]$.]
+
 #pagebreak()
 
 = API Reference
@@ -821,14 +1131,33 @@ Custom environments also support plurals:
 == Environment Functions
 
 ```typst
-#theorem(name: none, number: auto)[body]
-#definition(name: none, number: auto)[body]
-#lemma(name: none, number: auto)[body]
-#proposition(name: none, number: auto)[body]
-#corollary(name: none, number: auto)[body]
-#remark(name: none, number: none)[body]
-#example(name: none, number: auto)[body]
+// Built-in environments (all accept name:/title:, number:, qr:, space:, space-height:)
+#theorem(name: none, title: none, number: auto, qr: none, space: none, space-height: 3cm)[body]
+#definition(name: none, title: none, number: auto, qr: none, space: none, space-height: 3cm)[body]
+#lemma(name: none, title: none, number: auto, qr: none, space: none, space-height: 3cm)[body]
+#proposition(name: none, title: none, number: auto, qr: none, space: none, space-height: 3cm)[body]
+#corollary(name: none, title: none, number: auto, qr: none, space: none, space-height: 3cm)[body]
+#remark(name: none, title: none, number: none, qr: none, space: none, space-height: 3cm)[body]
+#example(name: none, title: none, number: auto, qr: none, space: none, space-height: 3cm)[body]
 #proof[body]
+
+// French aliases
+#theoreme      = theorem
+#definitionfr  = definition
+#propositionfr = proposition
+#exemplefr     = exemple = example
+#remarque      = remark
+#corollaire    = corollary
+#preuve(body)  = proof
+
+// French custom environments
+#pratique(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+#propriete(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+#formule(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+#formules(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+#methode(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+#notation(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+#discussion(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
 ```
 
 == Setup Function
@@ -836,8 +1165,12 @@ Custom environments also support plurals:
 #text(size: 9pt)[
 ```typst
 #beautiframe-setup(
-  style: "classic",              // Style selection
-  // Variant mapping
+  style: "classic",              // classic, modern, elegant, colorful, boxed,
+                                 // minimal, academic, bw, cours
+
+  // ── Variant mapping ──────────────────────────────────────────────────────
+  // default-variant sets all 7 at once; individual params override it
+  default-variant: none,         // e.g. "standard" — applies to all 7 types
   theorem-variant: "prominent",
   definition-variant: "standard",
   lemma-variant: "standard",
@@ -845,39 +1178,87 @@ Custom environments also support plurals:
   corollary-variant: "standard",
   remark-variant: "subtle",
   example-variant: "accent",
-  // Colors
+
+  // ── Colors ───────────────────────────────────────────────────────────────
   primary-color: rgb("#2c3e50"),
   secondary-color: rgb("#7f8c8d"),
   accent-color: rgb("#2980b9"),
+  background-color: white,
+  // Per-environment colors (used by colorful style and accent variants)
   theorem-color: rgb("#c0392b"),
   definition-color: rgb("#2980b9"),
-  // ... (more per-environment colors)
-  // Typography
-  label-size: 11pt,
-  label-weight: "bold",
-  name-style: "italic",
-  // Spacing
+  lemma-color: rgb("#8e44ad"),
+  proposition-color: rgb("#8e44ad"),
+  corollary-color: rgb("#d35400"),
+  remark-color: rgb("#7f8c8d"),
+  example-color: rgb("#27ae60"),
+
+  // ── Typography ───────────────────────────────────────────────────────────
+  label-size: 1em,               // 1em = body font size (recommended default)
+  label-weight: "bold",          // "bold", "regular", "semibold", etc.
+  name-style: "italic",          // subtitle style: "italic" or "normal"
+  body-size: none,               // inherited from document when none
+
+  // ── Vertical spacing ─────────────────────────────────────────────────────
   theorem-above: 1em,
   theorem-below: 0.8em,
-  header-gap: 0.3em,
-  // Layout
-  inset: (x: 0.8em, y: 0.6em),
-  border-width: 1pt,
-  border-radius: 0pt,
-  line-position: 2cm,
-  label-extra: 1cm,
-  // Numbering
-  link-to-section: false,
-  // Labels
+  definition-above: 1em,
+  definition-below: 0.8em,
+  lemma-above: 0.8em,
+  lemma-below: 0.6em,
+  proposition-above: 0.8em,
+  proposition-below: 0.6em,
+  corollary-above: 0.8em,
+  corollary-below: 0.6em,
+  remark-above: 0.6em,
+  remark-below: 0.6em,
+  example-above: 0.8em,
+  example-below: 0.8em,
+  proof-above: 0.5em,
+  proof-below: 0.8em,
+  header-gap: 0.3em,             // gap between label and body
+
+  // ── Layout ───────────────────────────────────────────────────────────────
+  inset: (x: 0.8em, y: 0.6em),  // padding inside boxes
+  border-width: 1pt,             // stroke thickness
+  border-radius: 0pt,            // rounded corners (boxed style)
+  line-position: 2cm,            // vertical line distance from left (classic)
+  label-extra: 1cm,              // label overhang into left margin (classic/cours)
+
+  // ── Numbering ────────────────────────────────────────────────────────────
+  numbering-format: "1",         // "1" or "1.1" (section.number)
+  link-to-section: false,        // prefix number with heading number
+  counter-reset: "manual",       // "manual", "section", "chapter"
+
+  // ── Labels (singular) ────────────────────────────────────────────────────
   theorem-label: "Theorem",
   definition-label: "Definition",
-  // ... (more labels)
+  lemma-label: "Lemma",
+  proposition-label: "Proposition",
+  corollary-label: "Corollary",
+  remark-label: "Remark",
+  example-label: "Example",
   proof-label: "Proof",
-  // QED
+
+  // ── Labels (plural, used when plural: true) ───────────────────────────────
+  theorem-plural: "Theorems",
+  definition-plural: "Definitions",
+  lemma-plural: "Lemmas",
+  proposition-plural: "Propositions",
+  corollary-plural: "Corollaries",
+  remark-plural: "Remarks",
+  example-plural: "Examples",
+
+  // ── QED ──────────────────────────────────────────────────────────────────
   qed-symbol: sym.square.stroked,
-  // Advanced
-  breakable: true,
-  color-mode: "color",
+
+  // ── Advanced ─────────────────────────────────────────────────────────────
+  breakable: true,               // allow page breaks within environments
+  color-mode: "color",           // "color", "grayscale", "bw"
+
+  // ── QR sidebar ───────────────────────────────────────────────────────────
+  qr-renderer: none,             // url => content function, or none to disable
+  qr-width: 1.85cm,              // width of the QR sidebar column
 )
 ```
 ]
@@ -885,7 +1266,13 @@ Custom environments also support plurals:
 == Utility Functions
 
 ```typst
-#beautiframe-reset()    // Reset all counters
+#beautiframe-reset()                // Reset all built-in counters
+#beautiframe-reset-french-math()    // Reset built-in + French env counters
+#reset-env("Label")                 // Reset a specific custom env counter
+
+// French math presets
+#preset-french-math()               // cours style, color, blue accent
+#preset-french-math-bw()            // bw style, black-and-white
 
 // Language presets
 #preset-french()

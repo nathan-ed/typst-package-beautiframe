@@ -10,6 +10,8 @@
 #import "styles/boxed.typ": boxed-style
 #import "styles/minimal.typ": minimal-style
 #import "styles/academic.typ": academic-style
+#import "styles/cours.typ": cours-style
+#import "styles/bw.typ": bw-style
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION STATE
@@ -51,7 +53,7 @@
   // ─────────────────────────────────────────────────────────────────────────
   // TYPOGRAPHY
   // ─────────────────────────────────────────────────────────────────────────
-  label-size: 11pt,                  // Size for "Theorem", "Definition", etc.
+  label-size: 1em,                   // Size for "Theorem", "Definition", etc. (1em = body font size)
   label-weight: "bold",              // Weight for labels
   name-style: "italic",              // Style for theorem names
   body-size: none,                   // Inherit from document
@@ -132,6 +134,14 @@
   breakable: true,                   // Allow page breaks within envs
 
   // ─────────────────────────────────────────────────────────────────────────
+  // QR SIDEBAR
+  // Optional renderer function: url => content. When set, passing qr: "url"
+  // to any environment places rendered content in a right sidebar.
+  // ─────────────────────────────────────────────────────────────────────────
+  qr-renderer: none,                 // url => content, or none to disable
+  qr-width: 1.85cm,                  // Width of the QR sidebar column
+
+  // ─────────────────────────────────────────────────────────────────────────
   // COLOR MODE (Print-friendly options)
   // ─────────────────────────────────────────────────────────────────────────
   color-mode: "color",               // "color", "grayscale", "bw"
@@ -149,6 +159,8 @@
   boxed: boxed-style,
   minimal: minimal-style,
   academic: academic-style,
+  cours: cours-style,
+  bw: bw-style,
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -292,6 +304,8 @@
 #let beautiframe-setup(
   style: none,
   // Variant mapping
+  // default-variant sets all variants at once; individual params override it
+  default-variant: none,
   theorem-variant: none,
   definition-variant: none,
   lemma-variant: none,
@@ -367,11 +381,23 @@
   breakable: none,
   // Color mode
   color-mode: none,
+  // QR sidebar
+  qr-renderer: none,
+  qr-width: none,
 ) = {
   beautiframe-config.update(cfg => {
     let new-cfg = cfg
     if style != none { new-cfg.insert("style", style) }
-    // Variant mapping
+    // Variant mapping — default-variant first, then individual overrides win
+    if default-variant != none {
+      new-cfg.insert("theorem-variant",     default-variant)
+      new-cfg.insert("definition-variant",  default-variant)
+      new-cfg.insert("lemma-variant",       default-variant)
+      new-cfg.insert("proposition-variant", default-variant)
+      new-cfg.insert("corollary-variant",   default-variant)
+      new-cfg.insert("remark-variant",      default-variant)
+      new-cfg.insert("example-variant",     default-variant)
+    }
     if theorem-variant != none { new-cfg.insert("theorem-variant", theorem-variant) }
     if definition-variant != none { new-cfg.insert("definition-variant", definition-variant) }
     if lemma-variant != none { new-cfg.insert("lemma-variant", lemma-variant) }
@@ -447,6 +473,9 @@
     if breakable != none { new-cfg.insert("breakable", breakable) }
     // Color mode
     if color-mode != none { new-cfg.insert("color-mode", color-mode) }
+    // QR sidebar
+    if qr-renderer != none { new-cfg.insert("qr-renderer", qr-renderer) }
+    if qr-width != none { new-cfg.insert("qr-width", qr-width) }
     new-cfg
   })
 }
@@ -460,6 +489,36 @@
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// STUDENT FILL SPACE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Generate fill space appended inside an environment.
+// space: "empty" | "lines" | "grid"
+// height: total height of the fill area
+#let _fill-space(space, height) = {
+  if space == "empty" {
+    block(width: 100%, height: height)[]
+  } else if space == "lines" {
+    let gap = 8mm
+    let n = calc.ceil(height / gap) + 1
+    block(width: 100%, height: height, clip: true, breakable: false)[
+      #for _ in range(n) {
+        v(gap - 0.5pt)
+        line(length: 100%, stroke: 0.4pt + luma(72%))
+      }
+    ]
+  } else if space == "grid" {
+    block(
+      width: 100%, height: height, clip: true,
+      fill: pattern(size: (5mm, 5mm))[
+        #place(dx: 2.5mm, dy: 2.5mm,
+          circle(radius: 0.55pt, fill: luma(72%)))
+      ],
+    )[]
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CORE ENVIRONMENT FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -467,6 +526,12 @@
   type: "theorem",
   name: none,
   number: auto,
+  qr: none,
+  // Student fill space appended inside the environment.
+  // space: none (default) | "empty" | "lines" | "grid"
+  // space-height: height of the fill area
+  space: none,
+  space-height: 3cm,
   body,
 ) = context {
   let cfg = beautiframe-config.get()
@@ -480,6 +545,22 @@
 
   // Get environment color
   let env-color = get-env-color(type, cfg)
+
+  // Wrap body with QR sidebar if a renderer is configured
+  let body = if qr != none and cfg.qr-renderer != none {
+    grid(
+      columns: (1fr, cfg.qr-width),
+      column-gutter: 0.35cm,
+      align: top,
+      body,
+      (cfg.qr-renderer)(qr),
+    )
+  } else { body }
+
+  // Append student fill space if requested
+  let body = if space != none {
+    [#body#_fill-space(space, space-height)]
+  } else { body }
 
   // Handle numbering
   let num = if number == none {
@@ -531,54 +612,55 @@
 // CONVENIENCE FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
-#let theorem(name: none, number: auto, plural: false, body) = context {
+// title: is accepted as a synonym for name: for backward compatibility
+#let theorem(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(theorem-label: cfg.theorem-plural)
   }
-  env(type: "theorem", name: name, number: number, body)
+  env(type: "theorem", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
-#let definition(name: none, number: auto, plural: false, body) = context {
+#let definition(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(definition-label: cfg.definition-plural)
   }
-  env(type: "definition", name: name, number: number, body)
+  env(type: "definition", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
-#let lemma(name: none, number: auto, plural: false, body) = context {
+#let lemma(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(lemma-label: cfg.lemma-plural)
   }
-  env(type: "lemma", name: name, number: number, body)
+  env(type: "lemma", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
-#let proposition(name: none, number: auto, plural: false, body) = context {
+#let proposition(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(proposition-label: cfg.proposition-plural)
   }
-  env(type: "proposition", name: name, number: number, body)
+  env(type: "proposition", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
-#let corollary(name: none, number: auto, plural: false, body) = context {
+#let corollary(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(corollary-label: cfg.corollary-plural)
   }
-  env(type: "corollary", name: name, number: number, body)
+  env(type: "corollary", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
-#let remark(name: none, number: none, plural: false, body) = context {
+#let remark(name: none, title: none, number: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(remark-label: cfg.remark-plural)
   }
-  env(type: "remark", name: name, number: number, body)
+  env(type: "remark", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
-#let example(name: none, number: auto, plural: false, body) = context {
+#let example(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(example-label: cfg.example-plural)
   }
-  env(type: "example", name: name, number: number, body)
+  env(type: "example", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
 }
 #let proof(body) = env(type: "proof", body)
 
@@ -620,7 +702,7 @@
   let plural-label = if plural == none { label } else { plural }
 
   // Return the environment function
-  (name: none, number: auto, plural: false, body) => {
+  (name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) => {
     // Handle numbering
     let actual-number = number
     if number == auto {
@@ -647,7 +729,8 @@
     }
 
     // Render using the base environment type
-    env(type: base, name: name, number: actual-number, body)
+    let actual-name = if name != none { name } else { title }
+    env(type: base, name: actual-name, number: actual-number, qr: qr, space: space, space-height: space-height, body)
   }
 }
 
@@ -781,3 +864,92 @@
   remark-color: rgb("#d2b4de"),
   example-color: rgb("#6c3483"),
 )
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FRENCH MATH COURSE — built-in environments and preset
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Extra environments used in French secondary/post-secondary math courses
+#let propriete = new-env("Propriété", plural: "Propriétés", base: "corollary", numbered: false)
+#let formule   = new-env("Formule",   plural: "Formules",   base: "lemma")
+#let methode   = new-env("Méthode",   plural: "Méthodes",   base: "proposition")
+#let pratique  = new-env("En pratique", plural: "En pratique", base: "example")
+
+// formules — plural shorthand (same counter as formule)
+#let formules(name: none, title: none, qr: none, space: none, space-height: 3cm, body) = {
+  formule(plural: true, name: if name != none { name } else { title }, qr: qr, space: space, space-height: space-height, body)
+}
+
+// Notation / Discussion — unnumbered remark-type environments
+#let notation(name: none, title: none, qr: none, space: none, space-height: 3cm, body) = {
+  beautiframe-setup(remark-label: "Notation")
+  env(type: "remark", name: if name != none { name } else { title }, number: none, qr: qr, space: space, space-height: space-height, body)
+}
+#let discussion(name: none, title: none, qr: none, space: none, space-height: 3cm, body) = {
+  beautiframe-setup(remark-label: "Discussion")
+  env(type: "remark", name: if name != none { name } else { title }, number: none, qr: qr, space: space, space-height: space-height, body)
+}
+
+// Convenience aliases matching French terminology
+#let theoreme      = theorem
+#let definitionfr  = definition
+#let propositionfr = proposition
+#let exemple       = example
+#let exemplefr     = example
+#let remarque      = remark
+#let corollaire    = corollary
+// preuve wraps proof but accepts an ignored title: param for backward compatibility
+#let preuve(title: none, body) = proof(body)
+
+/// Apply the full French math course configuration in one call.
+/// Sets classic style, standard variants, blue accent, French labels, QED square.
+#let preset-french-math() = {
+  preset-french()
+  beautiframe-setup(
+    style: "cours",
+    theorem-variant:     "standard",
+    definition-variant:  "standard",
+    lemma-variant:       "standard",
+    proposition-variant: "standard",
+    corollary-variant:   "standard",
+    remark-variant:      "minimal",
+    example-variant:     "standard",
+    label-weight: "bold",
+    name-style:   "italic",
+    accent-color: rgb("#2980b9"),
+  )
+  qed-square()
+}
+
+/// Reset all built-in counters plus the french-math custom env counters.
+#let beautiframe-reset-french-math() = {
+  beautiframe-reset()
+  reset-env("Formule")
+  reset-env("Méthode")
+  reset-env("En pratique")
+}
+
+/// Apply the BW French math course configuration (Gymnomath / coursCollège style).
+/// Sets bw style with prominent boxes for théorèmes/propositions, standard side-blocks
+/// for définitions/exemples/méthodes, minimal for remarques. Black-and-white palette.
+#let preset-french-math-bw() = {
+  preset-french()
+  beautiframe-setup(
+    style:               "bw",
+    theorem-variant:     "prominent",
+    definition-variant:  "standard",
+    lemma-variant:       "boxed",
+    proposition-variant: "prominent",
+    corollary-variant:   "boxed",
+    remark-variant:      "minimal",
+    example-variant:     "standard",
+    label-weight:        "bold",
+    label-size:          8.4pt,
+    name-style:          "italic",
+    primary-color:       luma(10%),
+    secondary-color:     luma(45%),
+    border-width:        0.55pt,
+    proof-label:         "Preuve",
+  )
+  qed-square()
+}
