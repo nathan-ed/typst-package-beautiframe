@@ -206,7 +206,6 @@
   corollary-counter.update(0)
   remark-counter.update(0)
   example-counter.update(0)
-  beautiframe-ref-state.update((:))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -541,7 +540,7 @@
 // CORE ENVIRONMENT FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════
 
-#let env(
+#let _env-render(
   type: "theorem",
   name: none,
   number: auto,
@@ -616,14 +615,6 @@
   // Get spacing
   let spacing = get-env-spacing(type, cfg)
 
-  if label != none {
-    let label-key = if std.type(label-text) == str { label-text } else { str(label) }
-    beautiframe-ref-state.update(entries => {
-      entries.insert(str(label), (target: label, label: label-text, label-key: label-key, number: num, ref-number: ref-number-value))
-      entries
-    })
-  }
-
   let rendered = if type == "proof" {
     (style-dict.proof)(body, cfg)
   } else if style-dict.keys().contains(variant) {
@@ -643,6 +634,50 @@
   }
 
   v(spacing.below)
+}
+
+#let env(
+  type: "theorem",
+  name: none,
+  number: auto,
+  ref-number: auto,
+  label: none,
+  display-label: none,
+  color: none,
+  qr: none,
+  space: none,
+  space-height: 3cm,
+  body,
+) = {
+  let marker = if label == none {
+    []
+  } else {
+    metadata((
+      kind: "beautiframe-ref",
+      target-key: str(label),
+      target: label,
+      type: type,
+      display-label: display-label,
+      number: number,
+      ref-number: ref-number,
+    ))
+  }
+  [
+    #marker
+    #_env-render(
+      type: type,
+      name: name,
+      number: number,
+      ref-number: ref-number,
+      label: label,
+      display-label: display-label,
+      color: color,
+      qr: qr,
+      space: space,
+      space-height: space-height,
+      body,
+    )
+  ]
 }
 
 #let _env-ref-page-text(
@@ -676,6 +711,45 @@
   }
 }
 
+#let _env-ref-entry(target) = {
+  let key = str(target)
+  let hits = query(metadata).filter(item => {
+    let value = item.value
+    std.type(value) == dictionary and value.at("kind", default: none) == "beautiframe-ref" and value.at("target-key", default: none) == key
+  })
+  if hits.len() == 0 {
+    none
+  } else {
+    let entry = hits.first().value
+    let cfg = beautiframe-config.get()
+    let label-text = if entry.display-label != none { entry.display-label } else { get-env-label(entry.type, cfg) }
+    let ctr = get-counter(entry.type)
+    let actual-number = if entry.number == none {
+      none
+    } else if entry.number == auto and ctr != none {
+      ctr.at(target).first() + 1
+    } else {
+      entry.number
+    }
+    let num = if actual-number == none {
+      none
+    } else if entry.number == auto and cfg.link-to-section {
+      let h = counter(heading).at(target)
+      if h.len() > 0 { str(h.first()) + "." + str(actual-number) } else { str(actual-number) }
+    } else {
+      str(actual-number)
+    }
+    let ref-num = if entry.ref-number == auto { actual-number } else { entry.ref-number }
+    (
+      target: entry.target,
+      label: label-text,
+      label-key: if std.type(label-text) == str { label-text } else { entry.target-key },
+      number: num,
+      ref-number: ref-num,
+    )
+  }
+}
+
 /// Reference a labelled Beautiframe environment.
 ///
 /// The target environment must be called with `label: <id>`.
@@ -689,12 +763,10 @@
   lower-label: true,
   missing: [??],
 ) = context {
-  let key = str(target)
-  let refs = beautiframe-ref-state.get()
-  if not refs.keys().contains(key) {
+  let entry = _env-ref-entry(target)
+  if entry == none {
     missing
   } else {
-    let entry = refs.at(key)
     let ref-label = _env-ref-label-text(entry.label, lower-label: lower-label)
     let ref-text = if entry.number == none {
       [#ref-label]
@@ -743,13 +815,11 @@
   separator: [, ],
   last-separator: [ et ],
 ) = context {
-  let refs = beautiframe-ref-state.get()
   let items = ()
 
   let _ = for target in targets.pos() {
-    let key = str(target)
-    if refs.keys().contains(key) {
-      let entry = refs.at(key)
+    let entry = _env-ref-entry(target)
+    if entry != none {
       items.push((target: target, entry: entry))
     } else {
       items.push((target: target, entry: none))
