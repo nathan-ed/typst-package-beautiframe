@@ -1,4 +1,4 @@
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 
 #set document(title: "Beautiframe Manual", author: "Nathan Scheinmann")
 #set page(
@@ -20,7 +20,7 @@
   #v(0.5em)
   #text(size: 16pt, fill: gray)[Beautiful Theorem-Like Environments for Typst]
   #v(1em)
-  #text(size: 12pt)[Version 0.3.0]
+  #text(size: 12pt)[Version 0.3.1]
   #v(2cm)
   #text(size: 11pt)[Nathan Scheinmann]
   #v(4cm)
@@ -48,13 +48,14 @@
 - *Language presets*: French, German, Spanish
 - *French Math Preset*: one-call setup for French secondary math courses
 - *QR sidebar*: attach a QR code column to any environment
+- *Environment references*: label theorem-like blocks and link back to their page
 - *Student fill space*: blank, ruled lines, or dot grid appended inside any environment
 - *Print-friendly modes*: color, grayscale, black & white
 
 == Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -72,7 +73,7 @@
 === French Math Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 
 #preset-french-math()   // or #preset-french-math-bw()
 
@@ -109,6 +110,7 @@ Each environment function accepts:
 - `name`: Optional name (e.g., `"Pythagorean"` or `[Pythagorean]`)
 - `title`: Synonym for `name` — both are accepted, `name` takes priority
 - `number`: `auto` (default), `none`, or custom value
+- `label`: Typst label for `env-ref`, for example `<thm-pythagore>`
 - `qr`: URL string to attach a QR code sidebar (requires `qr-renderer` configured)
 - `space`: `"empty"`, `"lines"`, or `"grid"` — adds fill space for student work
 - `space-height`: Height of the fill area (default `3cm`)
@@ -182,6 +184,57 @@ By default, remarks have no number. To number them:
 
 #remark(number: auto)[This remark is numbered.]
 #remark[This remark is not numbered (default).]
+
+== References
+
+Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
+The reference text includes the environment label, number, and target page, and the whole text links to the labelled block.
+
+```typst
+#theorem(label: <thm-pythagore>, title: "Pythagore")[
+  Dans un triangle rectangle: $a^2 + b^2 = c^2$.
+]
+
+Voir #env-ref(<thm-pythagore>).
+// -> Théorème 1 (p. 3)
+
+#remark(label: <rem-unites>)[Attention aux unités.]
+Voir #env-ref(<rem-unites>).
+// -> Remark (p. 3)
+```
+
+Use `page: false` to hide the page number:
+
+```typst
+#env-ref(<thm-pythagore>, page: false)
+```
+
+Use `page-style: "comma"` when the reference already sits inside parentheses:
+
+```typst
+(voir #env-ref(<thm-pythagore>, page-style: "comma"))
+```
+
+Use `env-refs` for several environments. Consecutive references with the same label are compacted:
+
+```typst
+#pratique(label: <prac-3>)[...]
+#pratique(label: <prac-4>)[...]
+#pratique(label: <prac-5>)[...]
+#pratique(label: <prac-6>)[...]
+
+Voir #env-refs(<prac-3>, <prac-4>, <prac-5>, <prac-6>, page: false).
+// -> En pratique 3-6
+
+Voir #env-refs(<prac-3>, <prac-4>, <prac-5>, <prac-6>, page-style: "comma").
+// -> En pratique 3-6, pp. 4-5
+
+#definition(label: <def-limite>)[...]
+#proposition(label: <prop-limite>)[...]
+
+Voir #env-refs(<def-limite>, <prop-limite>, page: false).
+// -> Définition 1 et Proposition 2
+```
 
 === Counter Reset
 
@@ -1004,12 +1057,108 @@ All French environments accept `name:` / `title:` (alias), `qr:`, `space:`, `spa
   [`methode`], [Méthode], [proposition], [Yes],
   [`notation(...)`], [Notation], [remark], [No],
   [`discussion(...)`], [Discussion], [remark], [No],
+  [`objectifs` / `objectif`], [Objectifs d'apprentissage], [lemma], [No],
+  [`concepts`], [Concepts clés], [lemma], [No],
+  [`glossaire`], [Glossaire], [lemma], [No],
+  [`defi` / `défi`], [🎯 Défi], [remark], [No],
 )
+
+== Challenge Callout (`defi`)
+
+`#defi` renders a compact, unnumbered challenge callout using the remark style. The icon and title are optional.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `title` | content or none | `none` | Optional title appended after "Défi :" |
+| `icon` | content or none | `[🎯]` | Decorative icon; set `none` to hide |
+| `label` | label or none | `none` | Cross-reference label |
+| `qr` | string or none | `none` | QR sidebar URL |
+| `space` | string or none | `none` | Fill space type |
+| `space-height` | length | `3cm` | Height of fill area |
+| `body` | content | — | Challenge content |
+
+```typst
+#defi[Résoudre $x^2 - 5x + 6 = 0$.]
+#defi(title: [Y arrivez-vous ?])[Montrer que $sqrt(2)$ est irrationnel.]
+#defi(icon: [🌶])[Justifier chaque étape du raisonnement.]
+#defi(icon: none)[Sans icône.]
+```
+
+#preset-french-math-bw()
+#beautiframe-reset-french-math()
+
+#defi[Résoudre $x^2 - 5x + 6 = 0$.]
+#defi(title: [Y arrivez-vous ?])[Montrer que $sqrt(2)$ est irrationnel.]
+
+== Formula Recap (`formule-end` / `formules-recap`)
+
+Collect formulas throughout a chapter and print them all at once in a recap box at the end. Use `#formule-end` to register a formula (nothing is displayed at the call site), then `#formules-recap` to render the collected list.
+
+```typst
+// Register formulas anywhere in the chapter (nothing rendered in place)
+#formule-end([Discriminant], $Delta = b^2 - 4a c$)
+#formule-end([Racines], $x = (-b plus.minus sqrt(Delta)) / (2a)$)
+
+// Render the recap (clears the list by default)
+#formules-recap()
+
+// Custom title
+#formules-recap(title: [Formules du chapitre])
+
+// Keep the list for a second recap (clear: false)
+#formules-recap(clear: false)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `label` | content | — | Formula name displayed in bold |
+| `formula` | content | — | The formula content |
+
+| Parameter (`formules-recap`) | Type | Default | Description |
+|-----------------------------|------|---------|-------------|
+| `title` | content | `[Formules à retenir]` | Box header |
+| `clear` | bool | `true` | Clear the collection after printing |
+
+#preset-french-math()
+#beautiframe-reset-french-math()
+
+#formule-end([Discriminant], $Delta = b^2 - 4a c$)
+#formule-end([Racines], $x_(1,2) = display((-b plus.minus sqrt(Delta)) / (2a))$)
+#formules-recap()
+
+== Course Meta-Environments
+
+Three unnumbered environments intended for course structure:
+
+- `#objectifs` / `#objectif` — learning objectives at the start of a chapter
+- `#concepts` — key concepts summary
+- `#glossaire` — glossary or vocabulary list
+
+```typst
+#objectifs[
+  - Savoir résoudre une équation du second degré
+  - Connaître la formule du discriminant
+]
+
+#concepts[Équation, discriminant, racine, trinôme.]
+
+#glossaire[*Racine* : valeur de $x$ pour laquelle $f(x) = 0$.]
+```
+
+#preset-french-math()
+#beautiframe-reset-french-math()
+
+#objectifs[
+  - Savoir résoudre une équation du second degré.
+  - Connaître et appliquer la formule du discriminant.
+]
+
+#concepts[Équation, discriminant, racine, trinôme du second degré.]
 
 == Example
 
 ```typst
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 #preset-french-math()
 
 #theoreme(name: "Pythagore")[

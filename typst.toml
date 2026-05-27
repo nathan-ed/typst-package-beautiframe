@@ -1,10 +1,10 @@
 [package]
 name = "beautiframe"
-version = "0.3.0"
+version = "0.3.1"
 entrypoint = "src/lib.typ"
 authors = ["Nathan Scheinmann"]
 license = "MIT"
-description = "Beautiful theorem-like environments for Typst with 9 styles and French math preset"
+description = "Beautiful theorem-like environments with 9 styles and French math preset"
 keywords = ["theorem", "definition", "environments", "math", "textbook"]
 repository = "https://github.com/nathan-ed/typst-package-beautiframe"
 categories = ["components", "layout"]

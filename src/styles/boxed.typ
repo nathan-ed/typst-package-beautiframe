@@ -287,7 +287,7 @@
           })
         )
       )
-      v(0.4em)
+      v(0.4em, weak: true)
       body
     }
   )

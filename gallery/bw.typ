@@ -1,4 +1,4 @@
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 
 #set page(width: 16cm, height: auto, margin: (x: 1cm, y: 1cm))
 #set text(font: "New Computer Modern", size: 10pt)

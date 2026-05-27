@@ -145,7 +145,17 @@
   // COLOR MODE (Print-friendly options)
   // ─────────────────────────────────────────────────────────────────────────
   color-mode: "color",               // "color", "grayscale", "bw"
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // WORKED EXERCISES
+  // ─────────────────────────────────────────────────────────────────────────
+  instructor-mode: false,             // Show instructor-only correction content
+  correction-label: "Correction",     // Default correction title
+  correction-renderer: none,          // (title, body) => content, or none
 ))
+
+#let beautiframe-ref-state = state("beautiframe-refs", (:))
+#let beautiframe-page-counter = counter(page)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STYLE REGISTRY
@@ -196,6 +206,7 @@
   corollary-counter.update(0)
   remark-counter.update(0)
   example-counter.update(0)
+  beautiframe-ref-state.update((:))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -381,6 +392,10 @@
   breakable: none,
   // Color mode
   color-mode: none,
+  // Worked exercises
+  instructor-mode: none,
+  correction-label: none,
+  correction-renderer: none,
   // QR sidebar
   qr-renderer: none,
   qr-width: none,
@@ -473,6 +488,10 @@
     if breakable != none { new-cfg.insert("breakable", breakable) }
     // Color mode
     if color-mode != none { new-cfg.insert("color-mode", color-mode) }
+    // Worked exercises
+    if instructor-mode != none { new-cfg.insert("instructor-mode", instructor-mode) }
+    if correction-label != none { new-cfg.insert("correction-label", correction-label) }
+    if correction-renderer != none { new-cfg.insert("correction-renderer", correction-renderer) }
     // QR sidebar
     if qr-renderer != none { new-cfg.insert("qr-renderer", qr-renderer) }
     if qr-width != none { new-cfg.insert("qr-width", qr-width) }
@@ -510,7 +529,7 @@
   } else if space == "grid" {
     block(
       width: 100%, height: height, clip: true,
-      fill: pattern(size: (5mm, 5mm))[
+      fill: tiling(size: (5mm, 5mm))[
         #place(dx: 2.5mm, dy: 2.5mm,
           circle(radius: 0.55pt, fill: luma(72%)))
       ],
@@ -526,6 +545,10 @@
   type: "theorem",
   name: none,
   number: auto,
+  ref-number: auto,
+  label: none,
+  display-label: none,
+  color: none,
   qr: none,
   // Student fill space appended inside the environment.
   // space: none (default) | "empty" | "lines" | "grid"
@@ -538,13 +561,13 @@
   let style-dict = styles.at(cfg.style)
 
   // Get label text
-  let label-text = get-env-label(type, cfg)
+  let label-text = if display-label != none { display-label } else { get-env-label(type, cfg) }
 
   // Get variant for this environment type
   let variant = get-env-variant(type, cfg)
 
   // Get environment color
-  let env-color = get-env-color(type, cfg)
+  let env-color = if color != none { process-color(color, cfg) } else { get-env-color(type, cfg) }
 
   // Wrap body with QR sidebar if a renderer is configured
   let body = if qr != none and cfg.qr-renderer != none {
@@ -563,40 +586,45 @@
   } else { body }
 
   // Handle numbering
+  let ref-number-value = none
   let num = if number == none {
     none
   } else if number == auto {
-    let ctr = get-counter(type)
-    if ctr != none {
+      let ctr = get-counter(type)
+      if ctr != none {
       ctr.step()
-      context {
-        let val = ctr.get().first()
-        if cfg.link-to-section {
-          let h = counter(heading).get()
-          if h.len() > 0 {
-            str(h.first()) + "." + str(val)
-          } else {
-            str(val)
-          }
+      let val = ctr.get().first() + 1
+      ref-number-value = if ref-number == auto { val } else { ref-number }
+      if cfg.link-to-section {
+        let h = counter(heading).get()
+        if h.len() > 0 {
+          str(h.first()) + "." + str(val)
         } else {
           str(val)
         }
+      } else {
+        str(val)
       }
     } else {
       none
     }
   } else {
+    ref-number-value = if ref-number == auto { number } else { ref-number }
     number
   }
 
   // Get spacing
   let spacing = get-env-spacing(type, cfg)
 
-  // Wrap in spacing block
-  v(spacing.above)
+  if label != none {
+    let label-key = if std.type(label-text) == str { label-text } else { str(label) }
+    beautiframe-ref-state.update(entries => {
+      entries.insert(str(label), (target: label, label: label-text, label-key: label-key, number: num, ref-number: ref-number-value))
+      entries
+    })
+  }
 
-  // Call appropriate style renderer
-  if type == "proof" {
+  let rendered = if type == "proof" {
     (style-dict.proof)(body, cfg)
   } else if style-dict.keys().contains(variant) {
     (style-dict.at(variant))(label-text, name, num, body, cfg, env-color)
@@ -605,64 +633,238 @@
     (style-dict.standard)(label-text, name, num, body, cfg, env-color)
   }
 
+  // Wrap in spacing block
+  v(spacing.above)
+
+  if label == none {
+    rendered
+  } else {
+    [#rendered #label]
+  }
+
   v(spacing.below)
 }
+
+#let _env-ref-page-text(
+  targets,
+  page-style: "comma",
+  page-prefix: "p. ",
+  pages-prefix: "pp. ",
+) = {
+  let first-page = beautiframe-page-counter.at(targets.first()).first()
+  let last-page = beautiframe-page-counter.at(targets.last()).first()
+  let page-ref = if first-page == last-page {
+    [#page-prefix#first-page]
+  } else {
+    [#pages-prefix#first-page#text[-]#last-page]
+  }
+  if page-style == "comma" {
+    [, #page-ref]
+  } else if page-style == "bare" {
+    [ #page-ref]
+  } else {
+    [ (#page-ref)]
+  }
+}
+
+#let _env-ref-label-text(label, lower-label: true) = {
+  if lower-label and std.type(label) == str and label.len() > 0 {
+    let parts = label.clusters()
+    lower(parts.first()) + parts.slice(1).join("")
+  } else {
+    label
+  }
+}
+
+/// Reference a labelled Beautiframe environment.
+///
+/// The target environment must be called with `label: <id>`.
+/// By default this prints a linked reference such as "theorem 2, p. 5".
+#let env-ref(
+  target,
+  page: true,
+  page-style: "comma",
+  page-prefix: "p. ",
+  pages-prefix: "pp. ",
+  lower-label: true,
+  missing: [??],
+) = context {
+  let key = str(target)
+  let refs = beautiframe-ref-state.get()
+  if not refs.keys().contains(key) {
+    missing
+  } else {
+    let entry = refs.at(key)
+    let ref-label = _env-ref-label-text(entry.label, lower-label: lower-label)
+    let ref-text = if entry.number == none {
+      [#ref-label]
+    } else {
+      [#ref-label #entry.number]
+    }
+    let page-text = if page {
+      _env-ref-page-text((target,), page-style: page-style, page-prefix: page-prefix, pages-prefix: pages-prefix)
+    } else {
+      [#none]
+    }
+    link(entry.target)[#ref-text#page-text]
+  }
+}
+#let envref = env-ref
+
+#let _env-ref-range-text(group, lower-label: true) = {
+  let first = group.first()
+  let last = group.last()
+  let first-entry = first.entry
+  let last-entry = last.entry
+  let ref-label = _env-ref-label-text(first-entry.label, lower-label: lower-label)
+  if group.len() == 1 or first-entry.number == none {
+    if first-entry.number == none {
+      [#ref-label]
+    } else {
+      [#ref-label #first-entry.number]
+    }
+  } else {
+    [#ref-label #first-entry.number#text[-]#last-entry.number]
+  }
+}
+
+/// Reference multiple labelled Beautiframe environments.
+///
+/// Consecutive references with the same display label are compacted into a range.
+/// Mixed environment types stay explicit, e.g. "Definition 1 and Proposition 2".
+#let env-refs(
+  ..targets,
+  page: true,
+  page-style: "comma",
+  page-prefix: "p. ",
+  pages-prefix: "pp. ",
+  lower-label: true,
+  missing: [??],
+  separator: [, ],
+  last-separator: [ et ],
+) = context {
+  let refs = beautiframe-ref-state.get()
+  let items = ()
+
+  let _ = for target in targets.pos() {
+    let key = str(target)
+    if refs.keys().contains(key) {
+      let entry = refs.at(key)
+      items.push((target: target, entry: entry))
+    } else {
+      items.push((target: target, entry: none))
+    }
+  }
+
+  let groups = ()
+  let _ = for item in items {
+    if item.entry == none {
+      groups.push((item,))
+    } else if groups.len() == 0 {
+      groups.push((item,))
+    } else {
+      let prev-group = groups.last()
+      let prev = prev-group.last()
+      let same-label = prev.entry != none and prev.entry.label-key == item.entry.label-key
+      let consecutive = (
+        same-label and
+        type(prev.entry.ref-number) == int and
+        type(item.entry.ref-number) == int and
+        item.entry.ref-number == prev.entry.ref-number + 1
+      )
+      if consecutive {
+        groups.remove(groups.len() - 1)
+        groups.push(prev-group + (item,))
+      } else {
+        groups.push((item,))
+      }
+    }
+  }
+
+  let pieces = ()
+  let _ = for group in groups {
+    let first = group.first()
+    if first.entry == none {
+      pieces.push([#missing])
+    } else {
+      let targets = group.map(item => item.target)
+      let text = _env-ref-range-text(group, lower-label: lower-label)
+      let page-text = if page {
+        _env-ref-page-text(targets, page-style: page-style, page-prefix: page-prefix, pages-prefix: pages-prefix)
+      } else {
+        [#none]
+      }
+      pieces.push(link(first.entry.target)[#text#page-text])
+    }
+  }
+
+  if pieces.len() == 0 {
+    [#none]
+  } else if pieces.len() == 1 {
+    pieces.first()
+  } else if pieces.len() == 2 {
+    pieces.join(last-separator)
+  } else {
+    pieces.slice(0, pieces.len() - 1).join(separator) + last-separator + pieces.last()
+  }
+}
+#let envrefs = env-refs
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONVENIENCE FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
 // title: is accepted as a synonym for name: for backward compatibility
-#let theorem(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let theorem(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(theorem-label: cfg.theorem-plural)
   }
-  env(type: "theorem", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "theorem", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let definition(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let definition(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(definition-label: cfg.definition-plural)
   }
-  env(type: "definition", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "definition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let lemma(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let lemma(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(lemma-label: cfg.lemma-plural)
   }
-  env(type: "lemma", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "lemma", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let proposition(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let proposition(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(proposition-label: cfg.proposition-plural)
   }
-  env(type: "proposition", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "proposition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let corollary(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let corollary(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(corollary-label: cfg.corollary-plural)
   }
-  env(type: "corollary", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "corollary", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let remark(name: none, title: none, number: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let remark(name: none, title: none, number: none, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(remark-label: cfg.remark-plural)
   }
-  env(type: "remark", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "remark", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let example(name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let example(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(example-label: cfg.example-plural)
   }
-  env(type: "example", name: if name != none { name } else { title }, number: number, qr: qr, space: space, space-height: space-height, body)
+  env(type: "example", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let proof(body) = env(type: "proof", body)
+#let proof(label: none, body) = env(type: "proof", label: label, body)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CUSTOM ENVIRONMENT FACTORY
@@ -697,40 +899,46 @@
 ) = {
   // Create a unique counter for this environment
   let env-counter = counter("beautiframe-custom-" + label)
+  let singular-label = label
 
   // Default plural to label if not specified
   let plural-label = if plural == none { label } else { plural }
 
   // Return the environment function
-  (name: none, title: none, number: auto, plural: false, qr: none, space: none, space-height: 3cm, body) => {
+  (name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) => context {
     // Handle numbering
     let actual-number = number
+    let actual-number-value = none
     if number == auto {
       if numbered {
         env-counter.step()
-        actual-number = context env-counter.get().first()
+        actual-number-value = env-counter.get().first() + 1
+        actual-number = actual-number-value
       } else {
         actual-number = none
       }
+    } else if number != none {
+      actual-number-value = number
     }
 
     // Choose singular or plural label
-    let display-label = if plural { plural-label } else { label }
+    let display-label = if plural { plural-label } else { singular-label }
 
-    // Temporarily set the label for the base type
-    let label-key = base + "-label"
-
-    // Apply color if specified
-    if color != none {
-      let color-key = base + "-color"
-      beautiframe-setup(..((label-key): display-label, (color-key): color))
-    } else {
-      beautiframe-setup(..((label-key): display-label))
-    }
-
-    // Render using the base environment type
+    // Render using the base environment type while preserving its configured label.
     let actual-name = if name != none { name } else { title }
-    env(type: base, name: actual-name, number: actual-number, qr: qr, space: space, space-height: space-height, body)
+    env(
+      type: base,
+      display-label: display-label,
+      color: color,
+      name: actual-name,
+      number: actual-number,
+      label: label,
+      ref-number: actual-number-value,
+      qr: qr,
+      space: space,
+      space-height: space-height,
+      body,
+    )
   }
 }
 
@@ -874,20 +1082,129 @@
 #let formule   = new-env("Formule",   plural: "Formules",   base: "lemma")
 #let methode   = new-env("Méthode",   plural: "Méthodes",   base: "proposition")
 #let pratique  = new-env("En pratique", plural: "En pratique", base: "example")
+#let guided-example = new-env("Exemple guidé", base: "example")
+#let objectifs = new-env("Objectifs d'apprentissage", base: "lemma", numbered: false)
+#let objectif  = objectifs
+#let concepts  = new-env("Concepts clés", base: "lemma", numbered: false)
+#let glossaire = new-env("Glossaire", base: "lemma", numbered: false)
+
+#let _default-correction-renderer(title, body) = block(
+  width: 100%,
+  above: 0.75em,
+  below: 0.45em,
+  inset: (x: 0.8em, y: 0.6em),
+  stroke: 0.5pt + luma(45%),
+  radius: 2pt,
+  breakable: true,
+)[
+  #text(weight: "bold")[#title]
+  #v(0.35em)
+  #body
+]
+
+#let worked-exercise(
+  title: none,
+  label: none,
+  qr: none,
+  correction: none,
+  correction-title: none,
+  body,
+) = context {
+  let cfg = beautiframe-config.get()
+  let shown-correction-title = if correction-title == none { cfg.correction-label } else { correction-title }
+  pratique(title: title, label: label, qr: qr, [
+    #body
+    #if correction != none and cfg.instructor-mode [
+      #if cfg.correction-renderer != none {
+        (cfg.correction-renderer)(shown-correction-title, correction)
+      } else {
+        _default-correction-renderer(shown-correction-title, correction)
+      }
+    ]
+  ])
+}
+
+/// A compact, unnumbered challenge callout following the configured remark style.
+/// Examples:
+/// #defi[Résoudre $x^2 - 5x + 6 = 0$.]
+/// #defi(title: [Y arrivez-vous ?])[Résoudre $x^2 - 5x + 6 = 0$.]
+/// #defi(title: [Pourquoi ?], icon: [🌶])[Justifier chaque étape.]
+#let defi(
+  title: none,
+  icon: [🎯],
+  label: none,
+  qr: none,
+  space: none,
+  space-height: 3cm,
+  body,
+) = {
+  let base-label = if icon == none {
+    [Défi]
+  } else {
+    [#icon #h(0.3em) Défi]
+  }
+  let challenge-label = if title == none {
+    base-label
+  } else {
+    [#base-label : #title]
+  }
+  block(breakable: false)[
+    #env(
+      type: "remark",
+      display-label: challenge-label,
+      number: none,
+      label: label,
+      qr: qr,
+      space: space,
+      space-height: space-height,
+      body,
+    )
+  ]
+}
+#let défi = defi
 
 // formules — plural shorthand (same counter as formule)
-#let formules(name: none, title: none, qr: none, space: none, space-height: 3cm, body) = {
-  formule(plural: true, name: if name != none { name } else { title }, qr: qr, space: space, space-height: space-height, body)
+#let formules(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
+  formule(plural: true, name: if name != none { name } else { title }, label: label, qr: qr, space: space, space-height: space-height, body)
 }
 
-// Notation / Discussion — unnumbered remark-type environments
-#let notation(name: none, title: none, qr: none, space: none, space-height: 3cm, body) = {
-  beautiframe-setup(remark-label: "Notation")
-  env(type: "remark", name: if name != none { name } else { title }, number: none, qr: qr, space: space, space-height: space-height, body)
+// Formulas marked for an end-of-chapter recap.
+#let formule-recap-state = state("beautiframe-formule-recap", ())
+
+/// Retain a formula for a later recap without displaying anything in place.
+#let formule-end(label, formula) = {
+  formule-recap-state.update(entries => entries + ((label, formula),))
 }
-#let discussion(name: none, title: none, qr: none, space: none, space-height: 3cm, body) = {
-  beautiframe-setup(remark-label: "Discussion")
-  env(type: "remark", name: if name != none { name } else { title }, number: none, qr: qr, space: space, space-height: space-height, body)
+#let formule_end = formule-end
+
+/// Print formulas collected since the previous recap, then start a new collection.
+#let formules-recap(title: [Formules à retenir], clear: true) = {
+  context {
+    let entries = formule-recap-state.get()
+    if entries.len() > 0 {
+      env(type: "lemma", display-label: title, number: none)[
+        #for ((label, formula)) in entries {
+          block(width: 100%, breakable: false, above: 0.55em, below: 0.7em)[
+            #strong(label) :
+
+            #align(center)[#formula]
+          ]
+        }
+      ]
+    }
+  }
+  if clear {
+    formule-recap-state.update(())
+  }
+}
+#let recap-formules = formules-recap
+
+// Notation / Discussion — unnumbered remark-type environments
+#let notation(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
+  env(type: "remark", display-label: "Notation", name: if name != none { name } else { title }, number: none, label: label, qr: qr, space: space, space-height: space-height, body)
+}
+#let discussion(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
+  env(type: "remark", display-label: "Discussion", name: if name != none { name } else { title }, number: none, label: label, qr: qr, space: space, space-height: space-height, body)
 }
 
 // Convenience aliases matching French terminology
@@ -899,7 +1216,7 @@
 #let remarque      = remark
 #let corollaire    = corollary
 // preuve wraps proof but accepts an ignored title: param for backward compatibility
-#let preuve(title: none, body) = proof(body)
+#let preuve(title: none, label: none, body) = proof(label: label, body)
 
 /// Apply the full French math course configuration in one call.
 /// Sets classic style, standard variants, blue accent, French labels, QED square.
@@ -927,6 +1244,11 @@
   reset-env("Formule")
   reset-env("Méthode")
   reset-env("En pratique")
+  reset-env("Exemple guidé")
+  reset-env("Objectifs d'apprentissage")
+  reset-env("Concepts clés")
+  reset-env("Glossaire")
+  formule-recap-state.update(())
 }
 
 /// Apply the BW French math course configuration (Gymnomath / coursCollège style).

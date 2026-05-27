@@ -44,13 +44,14 @@ Beautiful theorem-like environments for Typst with 9 distinctive styles and a Fr
 - **Language presets**: French, German, Spanish
 - **French Math Preset**: one-call setup for French secondary math courses
 - **QR sidebar**: attach a QR code column to any environment
+- **Environment references**: label theorem-like blocks and link back to their page
 - **Student fill space**: blank, ruled lines, or dot grid appended inside any environment
 - **Print-friendly modes**: color, grayscale, black & white
 
 ## Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -80,6 +81,7 @@ Beautiful theorem-like environments for Typst with 9 distinctive styles and a Fr
 
 All environments support optional numbering via the `number` parameter.
 All environments accept `title:` as a synonym for `name:` (backward compat).
+All environments accept `label:` for cross-references with `env-ref`.
 
 ### French Math Environments
 
@@ -95,6 +97,7 @@ The following environments are available after `#preset-french-math()` or `#pres
 | `corollaire` | Corollaire | corollary | Yes |
 | `preuve`    | Preuve | proof | No |
 | `pratique`  | En pratique | example | Yes |
+| `guided-example` | Exemple guidé | example | Yes |
 | `propriete` | Propriété | corollary | No |
 | `formule`   | Formule | lemma | Yes |
 | `formules(...)` | Formules (plural) | lemma | Yes |
@@ -119,6 +122,49 @@ The following environments are available after `#preset-french-math()` or `#pres
 #theorem(title: "Pythagorean")[...]
 ```
 
+### References
+
+Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
+The reference text includes the environment label, number, and target page, and the whole text links to the labelled block.
+
+```typst
+#theorem(label: <thm-pythagore>, title: "Pythagore")[
+  Dans un triangle rectangle: $a^2 + b^2 = c^2$.
+]
+
+Voir #env-ref(<thm-pythagore>).
+// -> Théorème 1 (p. 3)
+
+#remark(label: <rem-unites>)[Attention aux unités.]
+Voir #env-ref(<rem-unites>).
+// -> Remark (p. 3)
+```
+
+Use `page: false` to hide the page number: `#env-ref(<thm-pythagore>, page: false)`.
+Use `page-style: "comma"` when the reference already sits inside parentheses:
+`(voir #env-ref(<thm-pythagore>, page-style: "comma"))`.
+
+Use `env-refs` for several environments. Consecutive references with the same label are compacted:
+
+```typst
+#pratique(label: <prac-3>)[...]
+#pratique(label: <prac-4>)[...]
+#pratique(label: <prac-5>)[...]
+#pratique(label: <prac-6>)[...]
+
+Voir #env-refs(<prac-3>, <prac-4>, <prac-5>, <prac-6>, page: false).
+// -> En pratique 3-6
+
+Voir #env-refs(<prac-3>, <prac-4>, <prac-5>, <prac-6>, page-style: "comma").
+// -> En pratique 3-6, pp. 4-5
+
+#definition(label: <def-limite>)[...]
+#proposition(label: <prop-limite>)[...]
+
+Voir #env-refs(<def-limite>, <prop-limite>, page: false).
+// -> Définition 1 et Proposition 2
+```
+
 ## Style Selection
 
 ```typst
@@ -131,7 +177,7 @@ The following environments are available after `#preset-french-math()` or `#pres
 One-call setup for French secondary math courses:
 
 ```typst
-#import "@preview/beautiframe:0.3.0": *
+#import "@preview/beautiframe:0.3.1": *
 
 // Color version (cours style, blue accent, bold labels, QED square)
 #preset-french-math()
@@ -146,9 +192,15 @@ One-call setup for French secondary math courses:
 #theoreme(name: "Pythagore")[Dans un triangle rectangle: $a^2 + b^2 = c^2$]
 #definitionfr[Une fonction continue préserve les limites.]
 #pratique[Calculer la dérivée de $f(x) = x^3 - 2x$.]
+#worked-exercise(correction: [On obtient $f'(x)=3x^2$.])[
+  Calculer la dérivée de $f(x)=x^3$.
+]
+#guided-example(title: "Méthode guidée")[On détaille chaque étape.]
 #formule[Les solutions de $a x^2 + b x + c = 0$ sont $x = (-b plus.minus sqrt(b^2 - 4ac)) / (2a)$.]
 #preuve[Par définition de la continuité.]
 ```
+
+`worked-exercise` displays its `correction:` only when `beautiframe-setup(instructor-mode: true)` is active. Configure `correction-renderer: (title, body) => ...` to use a custom correction style.
 
 ## QR Sidebar
 
@@ -308,6 +360,21 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 ```
 
 ## Changelog
+
+### [0.3.1] - 2026-05-27
+
+#### Added
+- **`worked-exercise`**: new environment for instructor-controlled correction reveal — shows correction only when `beautiframe-setup(instructor-mode: true)` is active; customizable via `correction-renderer`
+- **`guided-example`**: new "Exemple guidé" environment for step-by-step demonstrations
+- **`instructor-mode`** / **`correction-label`** / **`correction-renderer`**: new `beautiframe-setup` parameters for worked exercise support
+- **`lower-label`** parameter on `env-ref` / `env-refs`: renders environment label in lowercase (e.g. "le théorème 3" vs "Théorème 3")
+- Manual: document `defi`/`défi` challenge callout with parameter table and live examples
+- Manual: document `formule-end` / `formules-recap` formula recap workflow
+- Manual: document `objectifs`, `concepts`, `glossaire` course meta-environments
+
+#### Fixed
+- Replace deprecated `pattern` with `tiling` (removed in Typst 0.15.0)
+- Remove "Typst" from package description (redundant on Typst Universe)
 
 ### v0.3.0
 
