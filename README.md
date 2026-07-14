@@ -1,7 +1,7 @@
 # beautiframe
 
 [![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.0-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
-[![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/COMMIT_SHA/docs/manual.pdf)
+[![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/48882d454fc52d02e61b06c96197a4eb5245064d/docs/manual.pdf)
 [![Distributed under the MIT license](https://img.shields.io/badge/License-MIT-333333?labelColor=eee)](LICENSE)
 
 Beautiful theorem-like environments with 9 distinctive styles and a French math preset.
