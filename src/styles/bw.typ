@@ -79,7 +79,7 @@
       _bw-label(title, name, num, cfg),
       block(
         width: 100%,
-        inset: (x: 8pt, y: 6pt),
+        inset: cfg.inset,
         stroke: cfg.border-width + cfg.primary-color,
         radius: _box-radius,
       )[#body],
@@ -97,7 +97,7 @@
       _bw-label(title, name, num, cfg),
       block(
         width: 100%,
-        inset: (x: 8pt, y: 6pt),
+        inset: cfg.inset,
         stroke: (cfg.border-width + 0.4pt) + cfg.primary-color,
         radius: _box-radius,
       )[#body],
@@ -115,7 +115,7 @@
       _bw-label(title, name, num, cfg, color: env-color),
       block(
         width: 100%,
-        inset: (x: 8pt, y: 6pt),
+        inset: cfg.inset,
         stroke: cfg.border-width + env-color,
         radius: _box-radius,
       )[#body],

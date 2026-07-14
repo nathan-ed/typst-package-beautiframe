@@ -1,4 +1,4 @@
-#import "@preview/beautiframe:0.3.1": *
+#import "@preview/beautiframe:0.4.0": *
 
 #set document(title: "Beautiframe Manual", author: "Nathan Scheinmann")
 #set page(
@@ -20,7 +20,7 @@
   #v(0.5em)
   #text(size: 16pt, fill: gray)[Beautiful Theorem-Like Environments for Typst]
   #v(1em)
-  #text(size: 12pt)[Version 0.3.1]
+  #text(size: 12pt)[Version 0.4.0]
   #v(2cm)
   #text(size: 11pt)[Nathan Scheinmann]
   #v(4cm)
@@ -55,7 +55,7 @@
 == Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.3.1": *
+#import "@preview/beautiframe:0.4.0": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -73,7 +73,7 @@
 === French Math Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.3.1": *
+#import "@preview/beautiframe:0.4.0": *
 
 #preset-french-math()   // or #preset-french-math-bw()
 
@@ -184,6 +184,41 @@ By default, remarks have no number. To number them:
 
 #remark(number: auto)[This remark is numbered.]
 #remark[This remark is not numbered (default).]
+
+=== Section-Linked Numbering (LaTeX `\numberwithin` style)
+
+Off by default. Two independent, opt-in settings control it:
+
+- `link-to-section` — prefixes each environment number with the heading number.
+  `false` (default) gives "Theorem 3"; `true` prefixes one heading level
+  ("Theorem 2.3"); an integer $N$ prefixes the first $N$ heading levels
+  ("Theorem 2.1.3" for `link-to-section: 2`).
+- `counter-reset: "section"` — restarts every environment counter after each
+  heading up to the `link-to-section` depth (level 1 when `link-to-section`
+  is off). The default `"manual"` keeps counting across the whole document
+  (reset by hand with `beautiframe-reset()`).
+
+Combine both for the classic LaTeX behaviour:
+
+```typst
+#set heading(numbering: "1.1.")
+#beautiframe-setup(link-to-section: true, counter-reset: "section")
+
+= First section
+#theorem[...]   // Theorem 1.1
+#theorem[...]   // Theorem 1.2
+= Second section
+#theorem[...]   // Theorem 2.1
+
+#beautiframe-setup(link-to-section: 2)
+== A subsection
+#theorem[...]   // Theorem 2.1.1
+```
+
+Both settings also apply to custom environments created with `new-env`
+(and hence to `formule`, `methode`, `pratique`, ...): with the settings above,
+`#formule[...]` renders as "Formule 1.1". References made with `env-ref` /
+`env-refs` display the same section-linked number as the environment itself.
 
 == References
 
@@ -1158,7 +1193,7 @@ Three unnumbered environments intended for course structure:
 == Example
 
 ```typst
-#import "@preview/beautiframe:0.3.1": *
+#import "@preview/beautiframe:0.4.0": *
 #preset-french-math()
 
 #theoreme(name: "Pythagore")[
@@ -1204,6 +1239,49 @@ Three unnumbered environments intended for course structure:
 ]
 
 #preuve[Par calcul direct avec le discriminant.]
+
+#pagebreak()
+
+= Instructor Mode
+
+A single `instructor-mode` switch turns one source file into two documents:
+the student handout (default) and the instructor version with corrections.
+
+== Worked Exercises
+
+`worked-exercise` renders an exercise statement; its `correction:` block is
+shown only when `instructor-mode: true`:
+
+```typst
+#worked-exercise(
+  title: "Dérivée d'un produit",
+  correction: [On applique $(u v)' = u'v + u v'$ ...],
+)[
+  Dériver $f(x) = x^2 sin(x)$.
+]
+
+// In the instructor build:
+#beautiframe-setup(instructor-mode: true)
+```
+
+Options:
+
+- `correction-title:` overrides the heading of the correction block
+  (default: the `correction-label` config, "Correction").
+- `correction-renderer:` config — a `(title, body) => content` function
+  replacing the default framed block.
+- `discussion` accepts the same `correction:` / `correction-title:` options.
+
+== Instructor-Only Environments
+
+Every environment (built-ins and `new-env` customs) accepts `instructor: true`
+to hide the *entire block* from the student version:
+
+```typst
+#remark(instructor: true)[
+  Insister sur le cas $Delta = 0$ — erreur fréquente au test.
+]
+```
 
 #pagebreak()
 
@@ -1376,8 +1454,10 @@ Append a blank fill area inside any environment for students to write their answ
 
   // ── Numbering ────────────────────────────────────────────────────────────
   numbering-format: "1",         // "1" or "1.1" (section.number)
-  link-to-section: false,        // prefix number with heading number
-  counter-reset: "manual",       // "manual", "section", "chapter"
+  link-to-section: false,        // false, true (1 level) or int N: prefix with
+                                 // the first N heading levels ("Theorem 2.1.3")
+  counter-reset: "manual",       // "manual" or "section" (restart at each
+                                 // heading up to the link-to-section depth)
 
   // ── Labels (singular) ────────────────────────────────────────────────────
   theorem-label: "Theorem",

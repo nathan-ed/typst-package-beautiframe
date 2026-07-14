@@ -95,10 +95,16 @@
   // NUMBERING
   // ─────────────────────────────────────────────────────────────────────────
   numbering-format: "1",             // "1" or "1.1" for section.number
-  link-to-section: false,            // Include section number in env number
+  // Prefix env numbers with the heading number, LaTeX \numberwithin style.
+  // false = plain "Theorem 3"; true = one heading level ("Theorem 2.3");
+  // an integer N = first N heading levels ("Theorem 2.1.3" for N = 2).
+  // Applies to built-in AND new-env custom environments.
+  link-to-section: false,
 
-  // Counter reset behavior
-  counter-reset: "manual",           // "manual", "section", "chapter"
+  // Counter reset behavior: "manual" (default) keeps counting across the
+  // document; "section" restarts each env counter after every heading up to
+  // the link-to-section depth (level 1 when link-to-section is off).
+  counter-reset: "manual",           // "manual", "section"
 
   // ─────────────────────────────────────────────────────────────────────────
   // LABELS (English default) - Singular
@@ -537,6 +543,50 @@
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SECTION-LINKED NUMBERING
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Heading-prefix depth: 0 = disabled, true = 1 level, integer = N levels.
+#let _section-depth(cfg) = {
+  if cfg.link-to-section == true { 1 }
+  else if type(cfg.link-to-section) == int { calc.max(0, cfg.link-to-section) }
+  else { 0 }
+}
+
+// Selector matching every heading that restarts env numbering (level <= depth).
+#let _reset-selector(depth) = {
+  let sel = heading.where(level: 1)
+  for l in range(2, depth + 1) { sel = sel.or(heading.where(level: l)) }
+  sel
+}
+
+// Counter value consumed before the current section started (0 outside sections).
+// Must be called inside a context block.
+#let _section-base(ctr, loc, depth) = {
+  let hs = query(selector(_reset-selector(depth)).before(loc))
+  if hs.len() == 0 { 0 } else { ctr.at(hs.last().location()).first() }
+}
+
+// Number shown for the env: the raw count, minus what earlier sections consumed
+// when counter-reset is "section". Must be called inside a context block.
+#let _env-shown-val(cfg, ctr, val, loc) = {
+  if cfg.counter-reset == "section" {
+    val - _section-base(ctr, loc, calc.max(_section-depth(cfg), 1))
+  } else { val }
+}
+
+// Render the shown number with its heading prefix ("2.1.3") as a string.
+// Must be called inside a context block.
+#let _format-env-number(cfg, shown, loc) = {
+  let depth = _section-depth(cfg)
+  if depth > 0 {
+    let h = counter(heading).at(loc)
+    let levels = h.slice(0, calc.min(depth, h.len())).map(str)
+    if levels.len() > 0 { levels.join(".") + "." + str(shown) } else { str(shown) }
+  } else { str(shown) }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CORE ENVIRONMENT FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -549,6 +599,10 @@
   display-label: none,
   color: none,
   qr: none,
+  instructor: false,
+  // Counter override (used by new-env custom environments); none = the
+  // built-in counter for `type`.
+  counter: none,
   // Student fill space appended inside the environment.
   // space: none (default) | "empty" | "lines" | "grid"
   // space-height: height of the fill area
@@ -557,6 +611,9 @@
   body,
 ) = context {
   let cfg = beautiframe-config.get()
+  if instructor and not cfg.instructor-mode {
+    return none
+  }
   let style-dict = styles.at(cfg.style)
 
   // Get label text
@@ -589,21 +646,13 @@
   let num = if number == none {
     none
   } else if number == auto {
-      let ctr = get-counter(type)
-      if ctr != none {
+    let ctr = if counter != none { counter } else { get-counter(type) }
+    if ctr != none {
       ctr.step()
       let val = ctr.get().first() + 1
-      ref-number-value = if ref-number == auto { val } else { ref-number }
-      if cfg.link-to-section {
-        let h = counter(heading).get()
-        if h.len() > 0 {
-          str(h.first()) + "." + str(val)
-        } else {
-          str(val)
-        }
-      } else {
-        str(val)
-      }
+      let shown = _env-shown-val(cfg, ctr, val, here())
+      ref-number-value = if ref-number == auto { shown } else { ref-number }
+      _format-env-number(cfg, shown, here())
     } else {
       none
     }
@@ -645,6 +694,8 @@
   display-label: none,
   color: none,
   qr: none,
+  instructor: false,
+  counter-key: none,
   space: none,
   space-height: 3cm,
   body,
@@ -660,6 +711,7 @@
       display-label: display-label,
       number: number,
       ref-number: ref-number,
+      counter-key: counter-key,
     ))
   }
   [
@@ -673,6 +725,8 @@
       display-label: display-label,
       color: color,
       qr: qr,
+      instructor: instructor,
+      counter: if counter-key != none { counter(counter-key) } else { none },
       space: space,
       space-height: space-height,
       body,
@@ -721,21 +775,25 @@
     none
   } else {
     let entry = hits.first().value
+    let loc = hits.first().location()
     let cfg = beautiframe-config.get()
     let label-text = if entry.display-label != none { entry.display-label } else { get-env-label(entry.type, cfg) }
-    let ctr = get-counter(entry.type)
+    let ctr = if entry.at("counter-key", default: none) != none {
+      counter(entry.counter-key)
+    } else {
+      get-counter(entry.type)
+    }
     let actual-number = if entry.number == none {
       none
     } else if entry.number == auto and ctr != none {
-      ctr.at(target).first() + 1
+      _env-shown-val(cfg, ctr, ctr.at(target).first() + 1, loc)
     } else {
       entry.number
     }
     let num = if actual-number == none {
       none
-    } else if entry.number == auto and cfg.link-to-section {
-      let h = counter(heading).at(target)
-      if h.len() > 0 { str(h.first()) + "." + str(actual-number) } else { str(actual-number) }
+    } else if entry.number == auto {
+      _format-env-number(cfg, actual-number, loc)
     } else {
       str(actual-number)
     }
@@ -885,56 +943,56 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // title: is accepted as a synonym for name: for backward compatibility
-#let theorem(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let theorem(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(theorem-label: cfg.theorem-plural)
   }
-  env(type: "theorem", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "theorem", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let definition(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let definition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(definition-label: cfg.definition-plural)
   }
-  env(type: "definition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "definition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let lemma(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let lemma(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(lemma-label: cfg.lemma-plural)
   }
-  env(type: "lemma", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "lemma", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let proposition(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let proposition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(proposition-label: cfg.proposition-plural)
   }
-  env(type: "proposition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "proposition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let corollary(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let corollary(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(corollary-label: cfg.corollary-plural)
   }
-  env(type: "corollary", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "corollary", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let remark(name: none, title: none, number: none, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let remark(name: none, title: none, number: none, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(remark-label: cfg.remark-plural)
   }
-  env(type: "remark", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "remark", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let example(name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) = context {
+#let example(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
   if plural {
     let cfg = beautiframe-config.get()
     beautiframe-setup(example-label: cfg.example-plural)
   }
-  env(type: "example", name: if name != none { name } else { title }, number: number, label: label, qr: qr, space: space, space-height: space-height, body)
+  env(type: "example", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let proof(label: none, body) = env(type: "proof", label: label, body)
+#let proof(label: none, instructor: false, body) = env(type: "proof", label: label, instructor: instructor, body)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CUSTOM ENVIRONMENT FACTORY
@@ -967,30 +1025,16 @@
   numbered: true,
   color: none,
 ) = {
-  // Create a unique counter for this environment
-  let env-counter = counter("beautiframe-custom-" + label)
+  // Each custom environment gets its own counter, addressed by key so the
+  // central numbering (link-to-section, counter-reset) applies to it too.
+  let counter-key = "beautiframe-custom-" + label
   let singular-label = label
 
   // Default plural to label if not specified
   let plural-label = if plural == none { label } else { plural }
 
   // Return the environment function
-  (name: none, title: none, number: auto, label: none, plural: false, qr: none, space: none, space-height: 3cm, body) => context {
-    // Handle numbering
-    let actual-number = number
-    let actual-number-value = none
-    if number == auto {
-      if numbered {
-        env-counter.step()
-        actual-number-value = env-counter.get().first() + 1
-        actual-number = actual-number-value
-      } else {
-        actual-number = none
-      }
-    } else if number != none {
-      actual-number-value = number
-    }
-
+  (name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) => {
     // Choose singular or plural label
     let display-label = if plural { plural-label } else { singular-label }
 
@@ -1001,10 +1045,11 @@
       display-label: display-label,
       color: color,
       name: actual-name,
-      number: actual-number,
+      number: if number == auto and not numbered { none } else { number },
+      counter-key: counter-key,
       label: label,
-      ref-number: actual-number-value,
       qr: qr,
+      instructor: instructor,
       space: space,
       space-height: space-height,
       body,
@@ -1151,6 +1196,7 @@
 #let propriete = new-env("Propriété", plural: "Propriétés", base: "corollary", numbered: false)
 #let formule   = new-env("Formule",   plural: "Formules",   base: "lemma")
 #let methode   = new-env("Méthode",   plural: "Méthodes",   base: "proposition")
+#let regles    = new-env("Règle",     plural: "Règles",     base: "proposition", numbered: false)
 #let pratique  = new-env("En pratique", plural: "En pratique", base: "example")
 #let guided-example = new-env("Exemple guidé", base: "example")
 #let objectifs = new-env("Objectifs d'apprentissage", base: "lemma", numbered: false)
@@ -1162,13 +1208,16 @@
   width: 100%,
   above: 0.75em,
   below: 0.45em,
-  inset: (x: 0.8em, y: 0.6em),
+  inset: (x: 0.8em, y: 0.75em),
   stroke: 0.5pt + luma(45%),
   radius: 2pt,
   breakable: true,
 )[
-  #text(weight: "bold")[#title]
-  #v(0.35em)
+  // Keep the correction title with the first following body item.
+  #block(sticky: true)[
+    #text(weight: "bold")[#title]
+    #v(0.35em)
+  ]
   #body
 ]
 
@@ -1273,8 +1322,30 @@
 #let notation(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
   env(type: "remark", display-label: "Notation", name: if name != none { name } else { title }, number: none, label: label, qr: qr, space: space, space-height: space-height, body)
 }
-#let discussion(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
-  env(type: "remark", display-label: "Discussion", name: if name != none { name } else { title }, number: none, label: label, qr: qr, space: space, space-height: space-height, body)
+#let discussion(
+  name: none,
+  title: none,
+  label: none,
+  qr: none,
+  instructor: false,
+  correction: none,
+  correction-title: none,
+  space: none,
+  space-height: 3cm,
+  body,
+) = context {
+  let cfg = beautiframe-config.get()
+  let shown-correction-title = if correction-title == none { cfg.correction-label } else { correction-title }
+  env(type: "remark", display-label: "Discussion", name: if name != none { name } else { title }, number: none, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, [
+    #body
+    #if correction != none and cfg.instructor-mode [
+      #if cfg.correction-renderer != none {
+        (cfg.correction-renderer)(shown-correction-title, correction)
+      } else {
+        _default-correction-renderer(shown-correction-title, correction)
+      }
+    ]
+  ])
 }
 
 // Convenience aliases matching French terminology
@@ -1340,6 +1411,7 @@
     name-style:          "italic",
     primary-color:       luma(10%),
     secondary-color:     luma(45%),
+    inset:              (x: 8pt, y: 8pt),
     border-width:        0.55pt,
     proof-label:         "Preuve",
   )

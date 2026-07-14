@@ -1,34 +1,36 @@
-# Beautiframe
+# beautiframe
 
-Beautiful theorem-like environments for Typst with 9 distinctive styles and a French math preset.
+[![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.0-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
+[![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/COMMIT_SHA/docs/manual.pdf)
+[![Distributed under the MIT license](https://img.shields.io/badge/License-MIT-333333?labelColor=eee)](LICENSE)
 
-📖 **[Full Manual](https://github.com/nathan-ed/typst-package-beautiframe/blob/8f3e0082ed704a4e2941a1ee50e18658c8acf2c7/docs/manual.pdf)** · 🎨 **[Gallery](#gallery)**
+Beautiful theorem-like environments with 9 distinctive styles and a French math preset.
 
 ## Gallery
 
 <table>
 <tr>
-<td width="50%"><strong>Classic</strong><br><img src="gallery/classic.png" alt="Classic style"></td>
-<td width="50%"><strong>Modern</strong><br><img src="gallery/modern.png" alt="Modern style"></td>
+<td width="50%"><strong>Classic</strong><br><img src="gallery/classic.svg" alt="classic style with vertical rule and label in the left margin"></td>
+<td width="50%"><strong>Modern</strong><br><img src="gallery/modern.svg" alt="modern style with colored left border bar"></td>
 </tr>
 <tr>
-<td><strong>Elegant</strong><br><img src="gallery/elegant.png" alt="Elegant style"></td>
-<td><strong>Colorful</strong><br><img src="gallery/colorful.png" alt="Colorful style"></td>
+<td><strong>Elegant</strong><br><img src="gallery/elegant.svg" alt="elegant style with thin horizontal rules above and below"></td>
+<td><strong>Colorful</strong><br><img src="gallery/colorful.svg" alt="colorful style with tinted background per environment type"></td>
 </tr>
 <tr>
-<td><strong>Boxed</strong><br><img src="gallery/boxed.png" alt="Boxed style"></td>
-<td><strong>Minimal</strong><br><img src="gallery/minimal.png" alt="Minimal style"></td>
+<td><strong>Boxed</strong><br><img src="gallery/boxed.svg" alt="boxed style with full rectangular frames around environments"></td>
+<td><strong>Minimal</strong><br><img src="gallery/minimal.svg" alt="minimal style with inline bold labels and no decoration"></td>
 </tr>
 <tr>
-<td><strong>Academic</strong><br><img src="gallery/academic.png" alt="Academic style"></td>
-<td><strong>QED Symbols</strong><br><img src="gallery/qed-symbols.png" alt="QED symbols"></td>
+<td><strong>Academic</strong><br><img src="gallery/academic.svg" alt="academic journal style with small-caps labels"></td>
+<td><strong>QED Symbols</strong><br><img src="gallery/qed-symbols.svg" alt="proof endings with the available QED symbol presets"></td>
 </tr>
 <tr>
-<td><strong>BW</strong> (French B&amp;W course)<br><img src="gallery/bw.png" alt="BW style"></td>
-<td><strong>Cours</strong> (French course)<br><img src="gallery/cours.png" alt="Cours style"></td>
+<td><strong>BW</strong> (French B&amp;W course)<br><img src="gallery/bw.svg" alt="black-and-white French course style with framed theorem boxes"></td>
+<td><strong>Cours</strong> (French course)<br><img src="gallery/cours.svg" alt="French course style with blue accents and side labels"></td>
 </tr>
 <tr>
-<td colspan="2"><strong>French Math Preset &amp; New Features</strong><br><img src="gallery/french-math.png" alt="French math preset and new features"></td>
+<td colspan="2"><strong>French Math Preset &amp; New Features</strong><br><img src="gallery/french-math.svg" alt="French math preset showing theoreme, formule, pratique and defi environments"></td>
 </tr>
 </table>
 
@@ -45,13 +47,15 @@ Beautiful theorem-like environments for Typst with 9 distinctive styles and a Fr
 - **French Math Preset**: one-call setup for French secondary math courses
 - **QR sidebar**: attach a QR code column to any environment
 - **Environment references**: label theorem-like blocks and link back to their page
+- **Section-linked numbering**: LaTeX `\numberwithin`-style "Theorem 2.1.3" with per-section reset (opt-in)
+- **Instructor mode**: one source, two documents — corrections and instructor-only blocks hidden in the student build
 - **Student fill space**: blank, ruled lines, or dot grid appended inside any environment
 - **Print-friendly modes**: color, grayscale, black & white
 
 ## Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.3.1": *
+#import "@preview/beautiframe:0.4.0": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -122,6 +126,25 @@ The following environments are available after `#preset-french-math()` or `#pres
 #theorem(title: "Pythagorean")[...]
 ```
 
+Section-linked numbering (LaTeX `\numberwithin` style) is opt-in and also applies
+to `new-env` custom environments such as `formule`:
+
+```typst
+#set heading(numbering: "1.1.")
+#beautiframe-setup(
+  link-to-section: true,      // true = 1 heading level; an int N = N levels ("2.1.3")
+  counter-reset: "section",   // restart counters at each heading up to that depth
+)
+
+= Première section
+#formule[$a^2 + b^2 = c^2$]   // Formule 1.1
+#formule[$e^(i pi) = -1$]     // Formule 1.2
+= Deuxième section
+#formule[$sin^2 + cos^2 = 1$] // Formule 2.1
+```
+
+`env-ref`/`env-refs` display the same section-linked numbers.
+
 ### References
 
 Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
@@ -177,7 +200,7 @@ Voir #env-refs(<def-limite>, <prop-limite>, page: false).
 One-call setup for French secondary math courses:
 
 ```typst
-#import "@preview/beautiframe:0.3.1": *
+#import "@preview/beautiframe:0.4.0": *
 
 // Color version (cours style, blue accent, bold labels, QED square)
 #preset-french-math()
@@ -360,6 +383,20 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 ```
 
 ## Changelog
+
+### [0.4.0] - 2026-07-14
+
+#### Added
+- References: `env-ref(<label>)` and `env-refs(<a>, <b>, ...)` link to any labelled environment, displaying its label, number and page ("théorème 2, p. 5"). Consecutive references of the same type are compacted into ranges ("formule 1.1-1.2"). Options: `page`, `page-style`, `page-prefix`, `lower-label`, `missing`, `separator`, `last-separator`. Aliases `envref`/`envrefs`.
+- Section-linked numbering (LaTeX `\numberwithin` style), opt-in:
+  - `link-to-section` now accepts an integer depth in addition to `true`: `true` = one heading level ("Théorème 2.3"), `N` = first N levels ("Formule 2.1.3" with `link-to-section: 2`).
+  - `counter-reset: "section"` is now implemented: every environment counter restarts after each heading up to the `link-to-section` depth (level 1 when the prefix is off). Default `"manual"` unchanged.
+  - Both settings now also apply to `new-env` custom environments (`formule`, `methode`, `pratique`, ...), which previously ignored them.
+  - `env-ref`/`env-refs` display the same section-linked numbers.
+- `instructor: false` parameter on every environment (built-ins and `new-env` customs): the whole block is only rendered when `instructor-mode: true`, in addition to the existing per-`correction` gating.
+
+#### Fixed
+- `bw` style: boxed/prominent variants now honour the configured `inset` instead of a hardcoded value.
 
 ### [0.3.1] - 2026-05-27
 
