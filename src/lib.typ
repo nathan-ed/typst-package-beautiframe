@@ -942,55 +942,44 @@
 // CONVENIENCE FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Plural label for a single call. Returns none (= keep the configured
+// singular label) unless this call asked for the plural.
+//
+// It has to be a per-call display-label, not a beautiframe-setup call: setup
+// updates the global config state from that point on, so one `plural: true`
+// used to turn every later environment of the same type plural with no way
+// back. This mirrors what new-env already does for custom environments.
+//
+// Must be called inside a context block.
+#let _plural-label(type, plural) = {
+  if plural {
+    beautiframe-config.get().at(type + "-plural", default: none)
+  } else {
+    none
+  }
+}
+
 // title: is accepted as a synonym for name: for backward compatibility
 #let theorem(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(theorem-label: cfg.theorem-plural)
-  }
-  env(type: "theorem", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "theorem", display-label: _plural-label("theorem", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let definition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(definition-label: cfg.definition-plural)
-  }
-  env(type: "definition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "definition", display-label: _plural-label("definition", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let lemma(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(lemma-label: cfg.lemma-plural)
-  }
-  env(type: "lemma", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "lemma", display-label: _plural-label("lemma", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let proposition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(proposition-label: cfg.proposition-plural)
-  }
-  env(type: "proposition", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "proposition", display-label: _plural-label("proposition", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let corollary(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(corollary-label: cfg.corollary-plural)
-  }
-  env(type: "corollary", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "corollary", display-label: _plural-label("corollary", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let remark(name: none, title: none, number: none, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(remark-label: cfg.remark-plural)
-  }
-  env(type: "remark", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "remark", display-label: _plural-label("remark", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let example(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
-  if plural {
-    let cfg = beautiframe-config.get()
-    beautiframe-setup(example-label: cfg.example-plural)
-  }
-  env(type: "example", name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
+  env(type: "example", display-label: _plural-label("example", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 #let proof(label: none, instructor: false, body) = env(type: "proof", label: label, instructor: instructor, body)
 
