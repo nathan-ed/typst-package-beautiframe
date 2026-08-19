@@ -444,6 +444,7 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 #beautiframe-reset()                // Reset all built-in counters to 0
 #beautiframe-reset-french-math()    // Reset built-in + French env counters
 #reset-env("Conjecture")            // Reset a specific custom env counter
+#beautiframe-reset-config()         // Reset every setting to its default value
 ```
 
 ## Changelog
@@ -455,8 +456,12 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 - `header-layout` redistributes the two halves of an environment header: `"label-first"` (default, *Remark 2 (What is analysis?)*), `"title-first"` (*What is analysis? (Remark 2)*), `"prefix"` (*Rem 2: What is analysis?*, separator configurable via `prefix-separator`). It applies to every style, since the redistribution happens before the style is called, and only to environments that have a title.
 - `label-abbrev: true` demotes labels to the short forms `theorem-abbrev`, `definition-abbrev`, `lemma-abbrev`, `proposition-abbrev`, `corollary-abbrev`, `remark-abbrev`, `example-abbrev`, `proof-abbrev`. Plural forms and `new-env` custom labels are never abbreviated. `preset-french()` sets the French forms and a narrow non-breaking space before the `"prefix"` colon.
 - `env-colors: true` makes *every* variant of *every* style follow the per-environment colours (`theorem-color`, `example-color`, …), not just the `accent` variants. Styles now read the resolved `base-color` instead of `accent-color`, so the setting is honoured everywhere, boxed-only variants (`titled`, `centered`, `corner`, `corner2`) included.
+- `beautiframe-reset-config()` restores every setting to its default. Configuration is global and cumulative, so this is the way back after a style, preset or theme has been applied — each chapter of a document can start from a known state.
 - `preset-english()` restores the built-in English labels, plurals and abbreviations — the way back from `preset-french()`, `preset-german()`, `preset-spanish()` or `preset-french-math()`.
 - `label-color` controls header ink: `auto` (each style's own choice, default), `"base"` (follow the environment colour), or an explicit colour.
+
+#### Fixed
+- Proof label and body sat on different baselines. The QED symbol is set at `1.4em`, taller than the text it ends, which grew the line box and dropped the body line relative to the label standing in its own column. The symbol is now placed in a zero-height box: it still sits on the baseline but no longer dictates the height of the line.
 
 #### Changed
 - Background tints of filled boxes are now perceptual by default (`background-tint: auto`): each colour is lightened by however much it takes to reach `background-lightness` (default `0.93`), so a yellow tint no longer vanishes where a green shouts. Set `background-tint` to a ratio (e.g. `92%`) for the previous fixed lightening.

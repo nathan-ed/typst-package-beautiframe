@@ -17,7 +17,7 @@
 // CONFIGURATION STATE
 // ═══════════════════════════════════════════════════════════════════════════
 
-#let beautiframe-config = state("beautiframe-config", (
+#let beautiframe-default-config = (
   style: "classic",
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -225,7 +225,14 @@
   trou-hint-size: 8pt,                // size of the optional hint text
   trou-mark-instructor: true,         // flag filled content in the instructor build
   trou-mark-color: none,              // none = accent-color
-))
+)
+
+#let beautiframe-config = state("beautiframe-config", beautiframe-default-config)
+
+// Restores every setting to its default value. Configuration is global and
+// cumulative, so this is the way back after a style, a preset or a theme has
+// been applied — chapters of a document can then start from a known state.
+#let beautiframe-reset-config() = beautiframe-config.update(beautiframe-default-config)
 
 #let beautiframe-ref-state = state("beautiframe-refs", (:))
 
@@ -871,6 +878,11 @@
   let cfg = {
     let c = cfg
     c.insert("base-color", if cfg.env-colors { env-color } else { process-color(cfg.accent-color, cfg) })
+    // The QED glyph is set at 1.4em, taller than the text it ends. Left as is,
+    // it grows the line box and drops the whole line below the proof label,
+    // which sits in its own column. A zero-height box keeps the glyph on the
+    // baseline without letting it dictate the height of the line.
+    c.insert("qed-symbol", box(height: 0pt, align(bottom, cfg.qed-symbol)))
     c
   }
 

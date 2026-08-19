@@ -1,36 +1,146 @@
 #import "@preview/beautiframe:0.4.5": *
 
 #set document(title: "Beautiframe Manual", author: "Nathan Scheinmann")
-#set page(
-  margin: (x: 2.5cm, y: 2cm),
-  header: context {
-    if counter(page).get().first() > 1 [
-      #text(size: 9pt, fill: gray)[Beautiframe Manual #h(1fr) #counter(page).display()]
-    ]
-  }
-)
-#set text(font: "New Computer Modern", size: 11pt)
-#set heading(numbering: "1.1")
-#set par(justify: true)
 
-// Title page
-#align(center)[
-  #v(3cm)
-  #text(size: 32pt, weight: "bold")[Beautiframe]
-  #v(0.5em)
-  #text(size: 16pt, fill: gray)[Beautiful Theorem-Like Environments for Typst]
-  #v(1em)
-  #text(size: 12pt)[Version 0.4.5]
-  #v(2cm)
-  #text(size: 11pt)[Nathan Scheinmann]
-  #v(4cm)
+// ═══════════════════════════════════════════════════════════════════════════
+// MANUAL DESIGN
+// A quiet, typographic shell: hairlines instead of boxes, one accent colour
+// used sparingly, and code set on a pale panel so it separates from prose.
+// ═══════════════════════════════════════════════════════════════════════════
+
+#let ink    = luma(12%)
+#let muted  = luma(45%)
+#let hair   = luma(80%)
+#let accent = rgb("#2980b9")
+
+// The part a chapter belongs to, shown as a kicker and in the running header.
+#let manual-part = state("manual-part", none)
+
+#let part(name) = {
+  manual-part.update(name)
+  pagebreak(weak: true)
+  block(above: 0pt, below: 1.1em)[
+    #text(size: 8.5pt, tracking: 0.16em, weight: "medium", fill: accent)[#upper(name)]
+    #v(-0.5em)
+    #line(length: 100%, stroke: 0.5pt + hair)
+  ]
+  // Every chapter starts from the built-in defaults, so a style, preset or
+  // theme demonstrated earlier never leaks into the next chapter.
+  beautiframe-reset-config()
+  beautiframe-reset()
+}
+
+#set page(
+  margin: (x: 2.5cm, y: 2.2cm),
+  header: context {
+    if counter(page).get().first() > 1 {
+      let p = manual-part.get()
+      set text(size: 8.5pt, fill: muted)
+      grid(
+        columns: (1fr, auto),
+        align: (left, right),
+        [Beautiframe Manual#if p != none [ · #p]],
+        counter(page).display(),
+      )
+      v(-0.6em)
+      line(length: 100%, stroke: 0.4pt + hair)
+    }
+  },
+)
+
+#set text(font: "New Computer Modern", size: 10.5pt, fill: ink)
+#set par(justify: true, leading: 0.62em, spacing: 1.1em)
+#set heading(numbering: "1.1")
+
+// Headings — the number sits in the accent colour, ahead of the title.
+#show heading.where(level: 1): it => block(above: 0.2em, below: 0.9em, sticky: true)[
+  #set text(size: 19pt, weight: "bold")
+  #if it.numbering != none [
+    #text(fill: accent)[#counter(heading).display(it.numbering)]
+    #h(0.45em)
+  ]
+  #it.body
+]
+#show heading.where(level: 2): it => block(above: 1.5em, below: 0.7em, sticky: true)[
+  #set text(size: 13pt, weight: "bold")
+  #if it.numbering != none [
+    #text(fill: muted)[#counter(heading).display(it.numbering)]
+    #h(0.4em)
+  ]
+  #it.body
+]
+#show heading.where(level: 3): it => block(above: 1.2em, below: 0.55em, sticky: true)[
+  #set text(size: 11pt, weight: "semibold")
+  #it.body
 ]
 
+// Code — pale panel with an accent edge, so listings read as listings.
+#show raw.where(block: true): it => block(
+  width: 100%,
+  fill: luma(97.5%),
+  stroke: (left: 1.5pt + accent.lighten(55%)),
+  radius: (right: 2pt),
+  inset: (x: 0.85em, y: 0.7em),
+  above: 0.9em,
+  below: 0.9em,
+  breakable: true,
+  text(size: 8.8pt, it),
+)
+#show raw.where(block: false): it => box(
+  fill: luma(96%),
+  inset: (x: 0.28em),
+  outset: (y: 0.24em),
+  radius: 1.5pt,
+  text(size: 0.92em, it),
+)
+
+// Tables — booktabs rules, small-caps header, quiet zebra.
+#let tbl(columns: auto, align: left, header: (), ..rows) = {
+  let cells = rows.pos()
+  let n-cols = header.len()
+  let n-rows = calc.ceil(cells.len() / n-cols)
+  block(above: 1em, below: 1em, table(
+    columns: columns,
+    align: align,
+    inset: (x: 0.65em, y: 0.5em),
+    stroke: none,
+    fill: (x, y) => if y > 0 and calc.even(y) { luma(98%) },
+    table.hline(y: 0, stroke: 0.7pt + ink),
+    table.hline(y: 1, stroke: 0.4pt + hair),
+    table.hline(y: n-rows + 1, stroke: 0.7pt + ink),
+    table.header(
+      ..header.map(h => text(size: 8pt, weight: "semibold", tracking: 0.08em,
+                             fill: muted, upper(h)))
+    ),
+    ..cells,
+  ))
+}
+
+// ── Title page ──────────────────────────────────────────────────────────────
+#v(6cm)
+#line(length: 100%, stroke: 0.8pt + ink)
+#v(0.4em)
+#text(size: 34pt, weight: "bold")[Beautiframe]
+#v(0.1em)
+#text(size: 13pt, fill: muted)[Theorem-like environments, nine styles, one French math preset]
+#v(0.4em)
+#line(length: 100%, stroke: 0.8pt + ink)
+#v(0.8em)
+#grid(
+  columns: (1fr, auto),
+  text(size: 10pt)[Nathan Scheinmann],
+  text(size: 10pt, fill: muted)[Version 0.4.5],
+)
+
 #pagebreak()
 
-#outline(indent: auto, depth: 3)
+#show outline.entry.where(level: 1): it => {
+  v(0.6em, weak: true)
+  strong(it)
+}
+#outline(title: [Contents], indent: auto, depth: 3)
 
-#pagebreak()
+#part("Getting Started")
 
 = Introduction
 
@@ -83,7 +193,7 @@
 #pratique(space: "lines", space-height: 3cm)[Calculer la dérivée de $f(x) = x^3$.]
 ```
 
-#pagebreak()
+#part("Environments")
 
 = Environments
 
@@ -91,10 +201,10 @@
 
 Beautiframe provides 8 environment types:
 
-#table(
-  columns: (auto, auto, auto, auto),
+#tbl(
+  columns: (auto, auto, auto, 1fr),
   align: (left, left, center, left),
-  [*Environment*], [*Default Variant*], [*Counter*], [*Usage*],
+  header: ([Environment], [Default variant], [Counter], [Usage]),
   [`theorem`], [prominent], [Optional], [Main results],
   [`definition`], [standard], [Optional], [Foundational concepts],
   [`lemma`], [standard], [Optional], [Supporting results],
@@ -285,7 +395,168 @@ Reset all counters manually:
 #beautiframe-reset()
 ```
 
-#pagebreak()
+#part("Environments")
+
+= Proofs and QED Symbols
+
+== Basic Proof
+
+```typst
+#proof[
+  By direct calculation, we have $2^2 = 4$.
+]
+```
+
+#beautiframe-setup(style: "classic", theorem-variant: "standard")
+
+#proof[
+  By direct calculation, we have $2^2 = 4$.
+]
+
+== QED Symbol Presets
+
+Beautiframe provides several QED symbol presets:
+
+```typst
+#qed-square()     // □ (default)
+#qed-filled()     // ■
+#qed-tombstone()  // ∎
+#qed-cqfd()       // CQFD (French)
+#qed-slashes()    // //
+#qed-text()       // Q.E.D.
+#qed-none()       // (no symbol)
+```
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1em,
+  row-gutter: 0.5em,
+  [
+    *Default (□):*
+    #qed-square()
+    #proof[Hollow square.]
+  ],
+  [
+    *Filled (■):*
+    #qed-filled()
+    #proof[Filled square.]
+  ],
+  [
+    *Tombstone (∎):*
+    #qed-tombstone()
+    #proof[Tombstone symbol.]
+  ],
+  [
+    *CQFD:*
+    #qed-cqfd()
+    #proof[French style.]
+  ],
+  [
+    *Slashes:*
+    #qed-slashes()
+    #proof[Double slash.]
+  ],
+  [
+    *Q.E.D.:*
+    #qed-text()
+    #proof[Latin abbreviation.]
+  ],
+)
+
+== Custom QED Symbol
+
+```typst
+#beautiframe-setup(qed-symbol: text(fill: green, sym.checkmark))
+```
+
+#beautiframe-setup(qed-symbol: text(size: 1.4em, fill: rgb("#27ae60"), sym.checkmark))
+#proof[Custom green checkmark.]
+
+#beautiframe-setup(qed-symbol: sym.square.stroked)
+
+#part("Environments")
+
+= Custom Environments
+
+Create your own environment types with independent counters using `new-env`:
+
+```typst
+// Create custom environments
+#let conjecture = new-env("Conjecture", base: "theorem")
+#let propriete = new-env("Propriété", base: "definition", numbered: false)
+#let formule = new-env("Formule", base: "lemma", color: green)
+#let axiom = new-env("Axiom", base: "theorem", numbered: true)
+
+// Use them like built-in environments
+#conjecture[Every even number greater than 2 is the sum of two primes.]
+#conjecture(name: "Goldbach")[Famous unsolved problem.]
+#propriete[A property without number.]
+#formule[The quadratic formula: $x = (-b plus.minus sqrt(b^2-4a c))/(2a)$]
+```
+
+#let conjecture = new-env("Conjecture", base: "theorem")
+#let axiom = new-env("Axiom", base: "definition")
+
+#beautiframe-setup(style: "boxed", theorem-variant: "titled", definition-variant: "titled")
+#beautiframe-reset()
+
+#conjecture[Every even number greater than 2 is the sum of two primes.]
+
+#conjecture(name: "Goldbach")[Famous unsolved problem in number theory.]
+
+#axiom[Two points determine a unique line.]
+
+== Parameters
+
+```typst
+#let my-env = new-env(
+  "Label",           // Display label (required)
+  base: "theorem",   // Inherit style from: theorem, definition, lemma, etc.
+  numbered: true,    // Auto-number by default
+  color: none,       // Optional custom color
+)
+```
+
+== Plural Forms
+
+All environments support a `plural` parameter. Default plurals are provided for English and all language presets:
+
+```typst
+#theorem(plural: true)[Multiple theorems grouped together.]
+#definition(plural: true)[Several related definitions.]
+```
+
+#beautiframe-setup(style: "boxed", theorem-variant: "titled")
+#beautiframe-reset()
+
+#theorem[A single theorem.]
+
+#theorem(plural: true)[Multiple theorems can be grouped in one box.]
+
+Language presets automatically set the correct plural forms:
+
+```typst
+#preset-english() // Sets: Theorems, Definitions, Lemmas, etc.
+#preset-french()  // Sets: Théorèmes, Définitions, Lemmes, etc.
+#preset-german()  // Sets: Sätze, Definitionen, Lemmata, etc.
+#preset-spanish() // Sets: Teoremas, Definiciones, Lemas, etc.
+```
+
+Custom environments also support plurals:
+
+```typst
+#let conjecture = new-env("Conjecture", plural: "Conjectures", base: "theorem")
+#conjecture(plural: true)[Two famous conjectures.]
+```
+
+== Resetting Custom Counters
+
+```typst
+#reset-env("Conjecture")  // Reset specific custom environment
+#beautiframe-reset()      // Reset all built-in counters
+```
+
+#part("Appearance")
 
 = Styles
 
@@ -453,7 +724,7 @@ Variants: `standard` (accent-colored border and label), `accent` (per-env color)
 #definitionfr[Une suite converge si elle admet une limite finie.]
 #remarque[La réciproque est fausse en général.]
 
-#pagebreak()
+#part("Appearance")
 
 = Variants
 
@@ -462,9 +733,9 @@ Variants: `standard` (accent-colored border and label), `accent` (per-env color)
 
 Each style provides variants that can be assigned to any environment type. The 6 core variants are available in all styles:
 
-#table(
+#tbl(
   columns: (auto, 1fr, auto),
-  [*Variant*], [*Description*], [*Default for*],
+  header: ([Variant], [Description], [Default for]),
   [`prominent`], [Strongest visual emphasis, thick borders, bold colors], [theorem],
   [`standard`], [Normal, balanced styling], [definition, lemma, proposition, corollary],
   [`subtle`], [Lighter, less prominent, muted colors], [remark],
@@ -475,9 +746,9 @@ Each style provides variants that can be assigned to any environment type. The 6
 
 *Boxed style* has 3 additional variants:
 
-#table(
+#tbl(
   columns: (auto, 1fr),
-  [*Variant*], [*Description*],
+  header: ([Variant], [Description]),
   [`titled`], [Label breaks the top border line (beautitled-style)],
   [`centered`], [Label centered at top, breaking the border],
   [`corner`], [L border (top + left sides)],
@@ -530,9 +801,9 @@ This is useful when switching styles (e.g., `bw` → `cours`) and wanting a unif
 #beautiframe-setup(style: "classic")
 #beautiframe-reset()
 
-== Visual Gallery: All Variants × All Styles
-
 #pagebreak()
+
+== Visual Gallery: All Variants × All Styles
 
 === Classic Style
 
@@ -706,86 +977,7 @@ This is useful when switching styles (e.g., `bw` → `cours`) and wanting a unif
   [*Inline:* #beautiframe-setup(theorem-variant: "inline") #theorem(name: "Name")[Sample text.]],
 )
 
-#pagebreak()
-
-= Proofs and QED Symbols
-
-== Basic Proof
-
-```typst
-#proof[
-  By direct calculation, we have $2^2 = 4$.
-]
-```
-
-#beautiframe-setup(style: "classic", theorem-variant: "standard")
-
-#proof[
-  By direct calculation, we have $2^2 = 4$.
-]
-
-== QED Symbol Presets
-
-Beautiframe provides several QED symbol presets:
-
-```typst
-#qed-square()     // □ (default)
-#qed-filled()     // ■
-#qed-tombstone()  // ∎
-#qed-cqfd()       // CQFD (French)
-#qed-slashes()    // //
-#qed-text()       // Q.E.D.
-#qed-none()       // (no symbol)
-```
-
-#grid(
-  columns: (1fr, 1fr),
-  column-gutter: 1em,
-  row-gutter: 0.5em,
-  [
-    *Default (□):*
-    #qed-square()
-    #proof[Hollow square.]
-  ],
-  [
-    *Filled (■):*
-    #qed-filled()
-    #proof[Filled square.]
-  ],
-  [
-    *Tombstone (∎):*
-    #qed-tombstone()
-    #proof[Tombstone symbol.]
-  ],
-  [
-    *CQFD:*
-    #qed-cqfd()
-    #proof[French style.]
-  ],
-  [
-    *Slashes:*
-    #qed-slashes()
-    #proof[Double slash.]
-  ],
-  [
-    *Q.E.D.:*
-    #qed-text()
-    #proof[Latin abbreviation.]
-  ],
-)
-
-== Custom QED Symbol
-
-```typst
-#beautiframe-setup(qed-symbol: text(fill: green, sym.checkmark))
-```
-
-#beautiframe-setup(qed-symbol: text(size: 1.4em, fill: rgb("#27ae60"), sym.checkmark))
-#proof[Custom green checkmark.]
-
-#beautiframe-setup(qed-symbol: sym.square.stroked)
-
-#pagebreak()
+#part("Appearance")
 
 = Colors and Themes
 
@@ -973,7 +1165,129 @@ For B&W printing:
 
 #beautiframe-setup(color-mode: "color")
 
-#pagebreak()
+#part("Appearance")
+
+= Header Layout
+
+#preset-english()
+
+By default the environment label leads and the title follows in parentheses:
+*Remark 2 (What is analysis?)*. When the title is the interesting half, swap
+the emphasis with `header-layout`.
+
+#tbl(
+  columns: (auto, 1fr),
+  header: ([Value], [Renders]),
+  [`"label-first"` (default)], [Remark 2 (What is analysis?)],
+  [`"title-first"`], [What is analysis? (Remark 2)],
+  [`"prefix"`], [Rem 2: What is analysis?],
+)
+
+```typst
+#beautiframe-setup(
+  header-layout: "title-first",   // or "prefix"
+  label-abbrev: true,             // Remark → Rem, Theorem → Thm, …
+  prefix-separator: ":",          // used by "prefix"
+)
+```
+
+The swap only applies to environments that *have* a title: `#definition[...]`
+without a name keeps rendering as `Definition 1`, since there is nothing to
+promote. Plural forms and custom `new-env` labels are never abbreviated.
+
+Every style follows automatically, because the redistribution happens before
+the style is called: styles keep rendering their prominent half and their
+secondary half, and only the content of those halves changes. In `"prefix"`
+the demoted label is set at regular weight so the title carries the emphasis.
+
+// A style whose header is set inline, so the two halves stay side by side.
+#beautiframe-setup(style: "minimal", remark-variant: "standard")
+
+*`header-layout: "label-first"` (default):*
+#beautiframe-setup(header-layout: "label-first", label-abbrev: false)
+#beautiframe-reset()
+#remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*`header-layout: "title-first"`:*
+#beautiframe-setup(header-layout: "title-first")
+#beautiframe-reset()
+#remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*`header-layout: "prefix"` with `label-abbrev: true`:*
+#beautiframe-setup(header-layout: "prefix", label-abbrev: true)
+#beautiframe-reset()
+#remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*A nameless environment is untouched by the layout:*
+#beautiframe-reset()
+#remark[There is no title here to promote, so the label stays put.]
+
+#beautiframe-setup(header-layout: "label-first", label-abbrev: false)
+
+== What the Header Is Made Of
+
+A header holds up to three pieces: the *label* ("Theorem"), the *number*, and
+the *title* given as `name:` (or its synonym `title:`). Which pieces are present
+decides how they are joined, before `header-layout` redistributes them.
+
+#tbl(
+  columns: (auto, auto, 1fr),
+  header: ([Written], [Header], [Note]),
+  [`#theorem(name: "…")`], [Theorem 1 (…)], [Title in parentheses after the number],
+  [`#theorem[…]`], [Theorem 2], [No title to promote; the label stays put],
+  [`#theorem(name: "…", number: none)`], [Theorem (…)], [Unnumbered, title still in parentheses],
+  [`#theorem(number: none)`], [Theorem], [Label alone],
+)
+
+`remark` is the one built-in that is unnumbered by default — which is why the
+demonstrations above read "Remark" and not "Remark 2". Pass `number: auto` to
+number it like the others.
+
+#beautiframe-reset()
+
+*Label, number and title — the title goes in parentheses:*
+#theorem(name: "Intermediate value")[Continuity carries every intermediate value.]
+
+*Label and number, no title:*
+#theorem[Nothing to put in parentheses here.]
+
+*Label and title, no number (`number: none`):*
+#theorem(name: "Intermediate value", number: none)[The parentheses stay; only the number is gone.]
+
+*Label alone:*
+#theorem(number: none)[Neither number nor title.]
+
+The same four cases under `header-layout: "title-first"`, where a title, when
+there is one, takes the lead and everything else follows it:
+
+#beautiframe-setup(header-layout: "title-first")
+#beautiframe-reset()
+
+*With number and title:*
+#theorem(name: "Intermediate value")[Title first, then the label and its number.]
+
+*Without a title, nothing can be swapped:*
+#theorem[The label keeps the lead.]
+
+*Title without a number:*
+#theorem(name: "Intermediate value", number: none)[Title first, label in parentheses.]
+
+#beautiframe-setup(header-layout: "label-first")
+
+== Abbreviations
+
+```typst
+#beautiframe-setup(
+  theorem-abbrev: "Thm", definition-abbrev: "Def", lemma-abbrev: "Lem",
+  proposition-abbrev: "Prop", corollary-abbrev: "Cor",
+  remark-abbrev: "Rem", example-abbrev: "Ex", proof-abbrev: "Pf",
+)
+```
+
+`preset-french()` sets the French forms (`Déf`, `Thm`, `Rem`, `Pr`, …) and a
+narrow non-breaking space before the colon of the `"prefix"` layout.
+
+#part("Appearance")
 
 = Language Presets
 
@@ -1039,7 +1353,7 @@ abbreviations. It is the way back after `preset-french()`, `preset-german()`,
 )
 ```
 
-#pagebreak()
+#part("Appearance")
 
 = Layout Configuration
 
@@ -1100,85 +1414,7 @@ Control label appearance:
 )
 ```
 
-= Custom Environments
-
-Create your own environment types with independent counters using `new-env`:
-
-```typst
-// Create custom environments
-#let conjecture = new-env("Conjecture", base: "theorem")
-#let propriete = new-env("Propriété", base: "definition", numbered: false)
-#let formule = new-env("Formule", base: "lemma", color: green)
-#let axiom = new-env("Axiom", base: "theorem", numbered: true)
-
-// Use them like built-in environments
-#conjecture[Every even number greater than 2 is the sum of two primes.]
-#conjecture(name: "Goldbach")[Famous unsolved problem.]
-#propriete[A property without number.]
-#formule[The quadratic formula: $x = (-b plus.minus sqrt(b^2-4a c))/(2a)$]
-```
-
-#let conjecture = new-env("Conjecture", base: "theorem")
-#let axiom = new-env("Axiom", base: "definition")
-
-#beautiframe-setup(style: "boxed", theorem-variant: "titled", definition-variant: "titled")
-#beautiframe-reset()
-
-#conjecture[Every even number greater than 2 is the sum of two primes.]
-
-#conjecture(name: "Goldbach")[Famous unsolved problem in number theory.]
-
-#axiom[Two points determine a unique line.]
-
-== Parameters
-
-```typst
-#let my-env = new-env(
-  "Label",           // Display label (required)
-  base: "theorem",   // Inherit style from: theorem, definition, lemma, etc.
-  numbered: true,    // Auto-number by default
-  color: none,       // Optional custom color
-)
-```
-
-== Plural Forms
-
-All environments support a `plural` parameter. Default plurals are provided for English and all language presets:
-
-```typst
-#theorem(plural: true)[Multiple theorems grouped together.]
-#definition(plural: true)[Several related definitions.]
-```
-
-#beautiframe-setup(style: "boxed", theorem-variant: "titled")
-#beautiframe-reset()
-
-#theorem[A single theorem.]
-
-#theorem(plural: true)[Multiple theorems can be grouped in one box.]
-
-Language presets automatically set the correct plural forms:
-
-```typst
-#preset-english() // Sets: Theorems, Definitions, Lemmas, etc.
-#preset-french()  // Sets: Théorèmes, Définitions, Lemmes, etc.
-#preset-german()  // Sets: Sätze, Definitionen, Lemmata, etc.
-#preset-spanish() // Sets: Teoremas, Definiciones, Lemas, etc.
-```
-
-Custom environments also support plurals:
-
-```typst
-#let conjecture = new-env("Conjecture", plural: "Conjectures", base: "theorem")
-#conjecture(plural: true)[Two famous conjectures.]
-```
-
-== Resetting Custom Counters
-
-```typst
-#reset-env("Conjecture")  // Reset specific custom environment
-#beautiframe-reset()      // Reset all built-in counters
-```
+#part("Teaching Documents")
 
 = French Math Preset
 
@@ -1201,10 +1437,10 @@ The French math preset configures beautiframe in a single call for French second
 
 All French environments accept `name:` / `title:` (alias), `qr:`, `space:`, `space-height:`.
 
-#table(
+#tbl(
   columns: (auto, auto, auto, auto),
   align: (left, left, left, center),
-  [*Function*], [*Label*], [*Base*], [*Numbered*],
+  header: ([Function], [Label], [Base], [Numbered]),
   [`theoreme`], [Théorème], [theorem], [Yes],
   [`definitionfr`], [Définition], [definition], [Yes],
   [`propositionfr`], [Proposition], [proposition], [Yes],
@@ -1231,15 +1467,17 @@ All French environments accept `name:` / `title:` (alias), `qr:`, `space:`, `spa
 
 `#defi` renders a compact, unnumbered challenge callout using the remark style. The icon and title are optional.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `title` | content or none | `none` | Optional title appended after "Défi :" |
-| `icon` | content or none | `[🎯]` | Decorative icon; set `none` to hide |
-| `label` | label or none | `none` | Cross-reference label |
-| `qr` | string or none | `none` | QR sidebar URL |
-| `space` | string or none | `none` | Fill space type |
-| `space-height` | length | `3cm` | Height of fill area |
-| `body` | content | — | Challenge content |
+#tbl(
+  columns: (auto, auto, auto, 1fr),
+  header: ([Parameter], [Type], [Default], [Description]),
+  [`title`], [content or none], [`none`], [Optional title appended after "Défi :"],
+  [`icon`], [content or none], [`[🎯]`], [Decorative icon; set `none` to hide],
+  [`label`], [label or none], [`none`], [Cross-reference label],
+  [`qr`], [string or none], [`none`], [QR sidebar URL],
+  [`space`], [string or none], [`none`], [Fill space type],
+  [`space-height`], [length], [`3cm`], [Height of fill area],
+  [`body`], [content], [—], [Challenge content],
+)
 
 ```typst
 #defi[Résoudre $x^2 - 5x + 6 = 0$.]
@@ -1275,16 +1513,18 @@ Collect formulas throughout a chapter and print them all at once in a recap box 
 #recap-formules()   // alias of formules-recap
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `label` | content | — | Formula name displayed in bold |
-| `formula` | content | — | The formula content |
-
-| Parameter (`formules-recap`) | Type | Default | Description |
-|-----------------------------|------|---------|-------------|
-| `title` | content | `[Formules à retenir]` | Box header |
-| `clear` | bool | `true` | Clear the collection after printing |
-
+#tbl(
+  columns: (auto, auto, auto, 1fr),
+  header: ([Parameter], [Type], [Default], [Description]),
+  [`label`], [content], [—], [Formula name displayed in bold],
+  [`formula`], [content], [—], [The formula content],
+)
+#tbl(
+  columns: (auto, auto, auto, 1fr),
+  header: ([Parameter (`formules-recap`)], [Type], [Default], [Description]),
+  [`title`], [content], [`[Formules à retenir]`], [Box header],
+  [`clear`], [bool], [`true`], [Clear the collection after printing],
+)
 #preset-french-math()
 #beautiframe-reset-french-math()
 
@@ -1371,85 +1611,7 @@ Three unnumbered environments intended for course structure:
 
 #preuve[Par calcul direct avec le discriminant.]
 
-#pagebreak()
-
-= Instructor Mode
-
-A single `instructor-mode` switch turns one source file into two documents:
-the student handout (default) and the instructor version with corrections.
-
-== Worked Exercises
-
-`worked-exercise` renders an exercise statement; its `correction:` block is
-shown only when `instructor-mode: true`:
-
-```typst
-#worked-exercise(
-  title: "Dérivée d'un produit",
-  correction: [On applique $(u v)' = u'v + u v'$ ...],
-)[
-  Dériver $f(x) = x^2 sin(x)$.
-]
-
-// In the instructor build:
-#beautiframe-setup(instructor-mode: true)
-```
-
-Options:
-
-- `correction-title:` overrides the heading of the correction block
-  (default: the `correction-label` config, "Correction").
-- `correction-renderer:` config — a `(title, body) => content` function
-  replacing the default framed block.
-- `discussion` accepts the same `correction:` / `correction-title:` options.
-
-== Instructor-Only Environments
-
-Every environment (built-ins and `new-env` customs) accepts `instructor: true`
-to hide the *entire block* from the student version:
-
-```typst
-#remark(instructor: true)[
-  Insister sur le cas $Delta = 0$ — erreur fréquente au test.
-]
-```
-
-#pagebreak()
-
-= QR Sidebar
-
-Any environment can display a rendered QR code (or any content) in a right sidebar column.
-
-== Configuration
-
-```typst
-// Configure once in your preamble
-#beautiframe-setup(
-  qr-renderer: url => image.decode(
-    tiaoma.qrcode(url, options: (border: 0)),
-    format: "svg", width: 1.85cm
-  ),
-  qr-width: 1.85cm,
-)
-```
-
-The `qr-renderer` key accepts a function `url => content`. When set to `none` (default), no sidebar is shown even if `qr:` is passed.
-
-== Usage
-
-```typst
-#theorem(qr: "https://example.com/proof")[
-  In a right triangle: $a^2 + b^2 = c^2$.
-]
-
-#definitionfr(qr: "https://wiki.example.com/continuity")[
-  Une fonction continue préserve les limites.
-]
-```
-
-The QR sidebar works with all environments including custom ones created with `new-env`.
-
-#pagebreak()
+#part("Teaching Documents")
 
 = Student Fill Space
 
@@ -1482,80 +1644,7 @@ Append a blank fill area inside any environment for students to write their answ
 *Dot grid (`space: "grid"`, height 3.5 cm):*
 #exemple(space: "grid", space-height: 3.5cm)[Représenter $f(x) = -x^2 + 4$ sur $[-3 ; 3]$.]
 
-#pagebreak()
-
-= Header Layout
-
-#preset-english()
-
-By default the environment label leads and the title follows in parentheses:
-*Remark 2 (What is analysis?)*. When the title is the interesting half, swap
-the emphasis with `header-layout`.
-
-#table(
-  columns: (auto, auto),
-  inset: 6pt,
-  align: left,
-  table.header([*Value*], [*Renders*]),
-  [`"label-first"` (default)], [Remark 2 (What is analysis?)],
-  [`"title-first"`], [What is analysis? (Remark 2)],
-  [`"prefix"`], [Rem 2: What is analysis?],
-)
-
-```typst
-#beautiframe-setup(
-  header-layout: "title-first",   // or "prefix"
-  label-abbrev: true,             // Remark → Rem, Theorem → Thm, …
-  prefix-separator: ":",          // used by "prefix"
-)
-```
-
-The swap only applies to environments that *have* a title: `#definition[...]`
-without a name keeps rendering as `Definition 1`, since there is nothing to
-promote. Plural forms and custom `new-env` labels are never abbreviated.
-
-Every style follows automatically, because the redistribution happens before
-the style is called: styles keep rendering their prominent half and their
-secondary half, and only the content of those halves changes. In `"prefix"`
-the demoted label is set at regular weight so the title carries the emphasis.
-
-#beautiframe-setup(style: "classic")
-
-*`header-layout: "label-first"` (default):*
-#beautiframe-setup(header-layout: "label-first", label-abbrev: false)
-#beautiframe-reset()
-#remark(name: "What is analysis?")[The study of limits, in one word.]
-
-*`header-layout: "title-first"`:*
-#beautiframe-setup(header-layout: "title-first")
-#beautiframe-reset()
-#remark(name: "What is analysis?")[The study of limits, in one word.]
-
-*`header-layout: "prefix"` with `label-abbrev: true`:*
-#beautiframe-setup(header-layout: "prefix", label-abbrev: true)
-#beautiframe-reset()
-#remark(name: "What is analysis?")[The study of limits, in one word.]
-
-*A nameless environment is untouched by the layout:*
-#beautiframe-reset()
-#remark[There is no title here to promote, so the label stays put.]
-
-#beautiframe-setup(header-layout: "label-first", label-abbrev: false)
-
-== Abbreviations
-
-```typst
-#beautiframe-setup(
-  theorem-abbrev: "Thm", definition-abbrev: "Def", lemma-abbrev: "Lem",
-  proposition-abbrev: "Prop", corollary-abbrev: "Cor",
-  remark-abbrev: "Rem", example-abbrev: "Ex", proof-abbrev: "Pf",
-)
-```
-
-`preset-french()` sets the French forms (`Déf`, `Thm`, `Rem`, `Pr`, …) and a
-narrow non-breaking space before the colon of the `"prefix"` layout.
-
-#pagebreak()
+#part("Teaching Documents")
 
 = Trous (Fill-in Blanks)
 
@@ -1595,11 +1684,9 @@ The instructor build is one switch away:
 
 == Parameters
 
-#table(
-  columns: (auto, auto, auto),
-  inset: 6pt,
-  align: left,
-  table.header([*Parameter*], [*Default*], [*Meaning*]),
+#tbl(
+  columns: (auto, auto, 1fr),
+  header: ([Parameter], [Default], [Meaning]),
   [`height`], [`auto`], [`auto` measures the hidden content and scales it; or give a fixed length, used as is],
   [`scale`], [`auto`], [Handwriting factor on the measured height (falls back to `trou-scale`)],
   [`fill`], [`auto`], [`"empty"`, `"lines"` or `"grid"` (falls back to `trou-fill`)],
@@ -1677,6 +1764,86 @@ content column, `boxed` breaks the hint through the top border, `modern` and
 `minimal` closes it with a single baseline rule, and `academic` uses a thin
 frame. A trou placed *inside* an environment body automatically drops the
 label-column layout, since that column is already occupied.
+
+#part("Teaching Documents")
+
+= Instructor Mode
+
+A single `instructor-mode` switch turns one source file into two documents:
+the student handout (default) and the instructor version with corrections.
+
+== Worked Exercises
+
+`worked-exercise` renders an exercise statement; its `correction:` block is
+shown only when `instructor-mode: true`:
+
+```typst
+#worked-exercise(
+  title: "Dérivée d'un produit",
+  correction: [On applique $(u v)' = u'v + u v'$ ...],
+)[
+  Dériver $f(x) = x^2 sin(x)$.
+]
+
+// In the instructor build:
+#beautiframe-setup(instructor-mode: true)
+```
+
+Options:
+
+- `correction-title:` overrides the heading of the correction block
+  (default: the `correction-label` config, "Correction").
+- `correction-renderer:` config — a `(title, body) => content` function
+  replacing the default framed block.
+- `discussion` accepts the same `correction:` / `correction-title:` options.
+
+== Instructor-Only Environments
+
+Every environment (built-ins and `new-env` customs) accepts `instructor: true`
+to hide the *entire block* from the student version:
+
+```typst
+#remark(instructor: true)[
+  Insister sur le cas $Delta = 0$ — erreur fréquente au test.
+]
+```
+
+#part("Teaching Documents")
+
+= QR Sidebar
+
+Any environment can display a rendered QR code (or any content) in a right sidebar column.
+
+== Configuration
+
+```typst
+// Configure once in your preamble
+#beautiframe-setup(
+  qr-renderer: url => image.decode(
+    tiaoma.qrcode(url, options: (border: 0)),
+    format: "svg", width: 1.85cm
+  ),
+  qr-width: 1.85cm,
+)
+```
+
+The `qr-renderer` key accepts a function `url => content`. When set to `none` (default), no sidebar is shown even if `qr:` is passed.
+
+== Usage
+
+```typst
+#theorem(qr: "https://example.com/proof")[
+  In a right triangle: $a^2 + b^2 = c^2$.
+]
+
+#definitionfr(qr: "https://wiki.example.com/continuity")[
+  Une fonction continue préserve les limites.
+]
+```
+
+The QR sidebar works with all environments including custom ones created with `new-env`.
+
+#part("Reference")
 
 = API Reference
 
@@ -1862,6 +2029,7 @@ label-column layout, since that column is already occupied.
 #beautiframe-reset()                // Reset all built-in counters
 #beautiframe-reset-french-math()    // Reset built-in + French env counters
 #reset-env("Label")                 // Reset a specific custom env counter
+#beautiframe-reset-config()         // Reset every setting to its default
 
 // French math presets
 #preset-french-math()               // cours style, color, blue accent
