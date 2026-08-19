@@ -1,7 +1,7 @@
 # beautiframe
 
 [![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.5-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
-[![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/48882d454fc52d02e61b06c96197a4eb5245064d/docs/manual.pdf)
+[![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/480987c6d2b31f963a296f82ab219e826f1d82df/docs/manual.pdf)
 [![Distributed under the MIT license](https://img.shields.io/badge/License-MIT-333333?labelColor=eee)](LICENSE)
 
 Beautiful theorem-like environments with 9 distinctive styles and a French math preset.
@@ -378,7 +378,7 @@ Boxed style has 4 additional variants: `titled`, `centered`, `corner`, `corner2`
 
 ## Configuration Reference
 
-See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blob/8f3e0082ed704a4e2941a1ee50e18658c8acf2c7/docs/manual.pdf) for complete API documentation.
+See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blob/480987c6d2b31f963a296f82ab219e826f1d82df/docs/manual.pdf) for complete API documentation.
 
 ```typst
 #beautiframe-setup(
