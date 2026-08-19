@@ -41,6 +41,27 @@
   accent-color: rgb("#2980b9"),      // Highlights and borders
   background-color: white,           // Background for filled styles
 
+  // Which colour a style's non-"accent" variants paint with:
+  //   false — the single accent-color (default, uniform look)
+  //   true  — each environment's own colour (theorem-color, example-color, …)
+  env-colors: false,
+  // Resolved per environment before the style is called; styles read this
+  // instead of accent-color so that env-colors is honoured everywhere.
+  base-color: rgb("#2980b9"),
+
+  // Background tints of filled boxes.
+  //   auto — lighten each colour until it reaches background-lightness, so a
+  //          yellow and a green tint read equally strong
+  //   a ratio (e.g. 92%) — lighten every colour by that fixed amount
+  background-tint: auto,
+  background-lightness: 0.93,        // target perceived lightness, 0..1
+
+  // Ink of the environment header text:
+  //   auto     — each style's own choice (mostly black or primary-color)
+  //   "base"   — follow base-color, i.e. the accent or the environment colour
+  //   a colour — that colour, in every style
+  label-color: auto,
+
   // Per-environment colors (can be used by colorful style or any style)
   theorem-color: rgb("#c0392b"),     // Red - strong, important
   definition-color: rgb("#2980b9"),  // Blue - foundational
@@ -130,6 +151,31 @@
   example-plural: "Examples",
 
   // ─────────────────────────────────────────────────────────────────────────
+  // HEADER LAYOUT
+  // Which half of "Remark (What is analysis?)" carries the emphasis.
+  //   "label-first" — Remark 2 (What is analysis?)      [default]
+  //   "title-first" — What is analysis? (Remark 2)
+  //   "prefix"      — Rem 2: What is analysis?
+  // Only applies when the environment has a name/title; otherwise the label
+  // is rendered as usual.
+  // ─────────────────────────────────────────────────────────────────────────
+  header-layout: "label-first",      // "label-first" | "title-first" | "prefix"
+  label-abbrev: false,               // demote to the short forms below
+  prefix-separator: ":",             // separator used by the "prefix" layout
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LABELS - Abbreviated (used when label-abbrev: true)
+  // ─────────────────────────────────────────────────────────────────────────
+  theorem-abbrev: "Thm",
+  definition-abbrev: "Def",
+  lemma-abbrev: "Lem",
+  proposition-abbrev: "Prop",
+  corollary-abbrev: "Cor",
+  remark-abbrev: "Rem",
+  example-abbrev: "Ex",
+  proof-abbrev: "Pf",
+
+  // ─────────────────────────────────────────────────────────────────────────
   // QED / PROOF
   // ─────────────────────────────────────────────────────────────────────────
   qed-symbol: text(size: 1.4em, sym.square.stroked),    // □ or ■ or ∎
@@ -158,9 +204,34 @@
   instructor-mode: false,             // Show instructor-only correction content
   correction-label: "Correction",     // Default correction title
   correction-renderer: none,          // (title, body) => content, or none
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TROUS (student fill-in blanks)
+  // A trou carries the content the class produces live: it prints as reserved
+  // space in the student build and as the content itself in the instructor
+  // build (instructor-mode: true).
+  // ─────────────────────────────────────────────────────────────────────────
+  trou-fill: "empty",                 // "empty" | "lines" | "grid"
+  trou-scale: 2.0,                    // handwriting factor applied to the
+                                      // measured height: a student's hand needs
+                                      // about twice the height of typeset text
+  trou-line-gap: 8mm,                 // ruling pitch, also the quantum the
+                                      // reserved height snaps to for "lines"
+  trou-frame: true,                   // frame the reserved space
+  trou-color: luma(65%),              // ink of rules and frame (student build)
+  trou-padding: 0.6em,                // breathing room over the measured height
+  trou-min-height: 1cm,               // never reserve less than this
+  trou-max-height: none,              // cap the reserved height (none = uncapped)
+  trou-hint-size: 8pt,                // size of the optional hint text
+  trou-mark-instructor: true,         // flag filled content in the instructor build
+  trou-mark-color: none,              // none = accent-color
 ))
 
 #let beautiframe-ref-state = state("beautiframe-refs", (:))
+
+// Depth of environment nesting, so a trou knows whether it sits inside an
+// environment body (where label-column layouts must not be re-applied).
+#let _trou-depth = state("beautiframe-trou-depth", 0)
 #let beautiframe-page-counter = counter(page)
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -254,6 +325,30 @@
   process-color(color, cfg)
 }
 
+// Relative luminance of a colour, 0 (black) to 1 (white)
+#let relative-luminance(color) = {
+  let comps = color.components()
+  let chan(c) = if type(c) == ratio { c / 100% } else { c / 255 }
+  let r = chan(comps.at(0))
+  let g = chan(comps.at(1))
+  let b = chan(comps.at(2))
+  r * 0.299 + g * 0.587 + b * 0.114
+}
+
+// Lighten a colour until it reaches the configured target lightness, so that
+// tints of a dark green and a bright yellow read with the same strength.
+// A dark colour gets lightened a lot, a light one barely at all.
+#let perceptual-tint(color, cfg) = {
+  if cfg.background-tint != auto {
+    color.lighten(cfg.background-tint)
+  } else {
+    let l = relative-luminance(color)
+    let target = cfg.background-lightness
+    let t = if l >= target { 0.0 } else { (target - l) / (1.0 - l) }
+    color.lighten(calc.min(t, 1.0) * 100%)
+  }
+}
+
 // Get background color for filled boxes (B&W aware)
 #let get-background-color(base-color, cfg) = {
   if cfg.color-mode == "bw" {
@@ -261,7 +356,7 @@
   } else if cfg.color-mode == "grayscale" {
     luma(95%)  // Very light gray
   } else {
-    base-color.lighten(92%)  // Light tint of the color
+    perceptual-tint(base-color, cfg)
   }
 }
 
@@ -286,6 +381,47 @@
   else if env-type == "example" { cfg.example-label }
   else if env-type == "proof" { cfg.proof-label }
   else { env-type }
+}
+
+// Get the abbreviated environment label (none when the type has no short form)
+#let get-env-abbrev(env-type, cfg) = {
+  if env-type == "theorem" { cfg.theorem-abbrev }
+  else if env-type == "definition" { cfg.definition-abbrev }
+  else if env-type == "lemma" { cfg.lemma-abbrev }
+  else if env-type == "proposition" { cfg.proposition-abbrev }
+  else if env-type == "corollary" { cfg.corollary-abbrev }
+  else if env-type == "remark" { cfg.remark-abbrev }
+  else if env-type == "example" { cfg.example-abbrev }
+  else if env-type == "proof" { cfg.proof-abbrev }
+  else { none }
+}
+
+// Redistribute (label, name, number) according to header-layout, so that every
+// style picks up the swap without knowing about it: styles keep rendering
+// "title" prominently and "name" as the secondary, parenthesised half.
+#let _apply-header-layout(cfg, env-type, label-text, name, num) = {
+  if cfg.header-layout == "label-first" or name == none {
+    (label-text, name, num)
+  } else {
+    // Abbreviate only the standard singular label: plural forms and custom
+    // environment labels are left alone.
+    let short = get-env-abbrev(env-type, cfg)
+    let base = if cfg.label-abbrev and short != none and label-text == get-env-label(env-type, cfg) {
+      short
+    } else {
+      label-text
+    }
+    let demoted = if num == none { [#base] } else { [#base #num] }
+
+    if cfg.header-layout == "title-first" {
+      // What is analysis? (Remark 2)
+      (name, demoted, none)
+    } else {
+      // Rem 2: What is analysis?  — the prefix stays light, the title carries
+      // the label weight applied by the style
+      ([#text(weight: "regular")[#demoted#cfg.prefix-separator]#h(0.35em)#name], none, none)
+    }
+  }
 }
 
 // Get environment variant
@@ -334,6 +470,10 @@
   secondary-color: none,
   accent-color: none,
   background-color: none,
+  env-colors: none,
+  label-color: none,
+  background-tint: none,
+  background-lightness: none,
   theorem-color: none,
   definition-color: none,
   lemma-color: none,
@@ -391,6 +531,19 @@
   corollary-plural: none,
   remark-plural: none,
   example-plural: none,
+  // Header layout
+  header-layout: none,
+  label-abbrev: none,
+  prefix-separator: none,
+  // Labels (abbreviated)
+  theorem-abbrev: none,
+  definition-abbrev: none,
+  lemma-abbrev: none,
+  proposition-abbrev: none,
+  corollary-abbrev: none,
+  remark-abbrev: none,
+  example-abbrev: none,
+  proof-abbrev: none,
   // QED
   qed-symbol: none,
   // Advanced
@@ -401,6 +554,18 @@
   instructor-mode: none,
   correction-label: none,
   correction-renderer: none,
+  // Trous
+  trou-fill: none,
+  trou-scale: none,
+  trou-line-gap: none,
+  trou-frame: none,
+  trou-color: none,
+  trou-padding: none,
+  trou-min-height: none,
+  trou-max-height: none,
+  trou-hint-size: none,
+  trou-mark-instructor: none,
+  trou-mark-color: none,
   // QR sidebar
   qr-renderer: none,
   qr-width: none,
@@ -430,6 +595,10 @@
     if secondary-color != none { new-cfg.insert("secondary-color", secondary-color) }
     if accent-color != none { new-cfg.insert("accent-color", accent-color) }
     if background-color != none { new-cfg.insert("background-color", background-color) }
+    if env-colors != none { new-cfg.insert("env-colors", env-colors) }
+    if label-color != none { new-cfg.insert("label-color", label-color) }
+    if background-tint != none { new-cfg.insert("background-tint", background-tint) }
+    if background-lightness != none { new-cfg.insert("background-lightness", background-lightness) }
     if theorem-color != none { new-cfg.insert("theorem-color", theorem-color) }
     if definition-color != none { new-cfg.insert("definition-color", definition-color) }
     if lemma-color != none { new-cfg.insert("lemma-color", lemma-color) }
@@ -487,6 +656,19 @@
     if corollary-plural != none { new-cfg.insert("corollary-plural", corollary-plural) }
     if remark-plural != none { new-cfg.insert("remark-plural", remark-plural) }
     if example-plural != none { new-cfg.insert("example-plural", example-plural) }
+    // Header layout
+    if header-layout != none { new-cfg.insert("header-layout", header-layout) }
+    if label-abbrev != none { new-cfg.insert("label-abbrev", label-abbrev) }
+    if prefix-separator != none { new-cfg.insert("prefix-separator", prefix-separator) }
+    // Labels (abbreviated)
+    if theorem-abbrev != none { new-cfg.insert("theorem-abbrev", theorem-abbrev) }
+    if definition-abbrev != none { new-cfg.insert("definition-abbrev", definition-abbrev) }
+    if lemma-abbrev != none { new-cfg.insert("lemma-abbrev", lemma-abbrev) }
+    if proposition-abbrev != none { new-cfg.insert("proposition-abbrev", proposition-abbrev) }
+    if corollary-abbrev != none { new-cfg.insert("corollary-abbrev", corollary-abbrev) }
+    if remark-abbrev != none { new-cfg.insert("remark-abbrev", remark-abbrev) }
+    if example-abbrev != none { new-cfg.insert("example-abbrev", example-abbrev) }
+    if proof-abbrev != none { new-cfg.insert("proof-abbrev", proof-abbrev) }
     // QED
     if qed-symbol != none { new-cfg.insert("qed-symbol", qed-symbol) }
     // Advanced
@@ -497,6 +679,18 @@
     if instructor-mode != none { new-cfg.insert("instructor-mode", instructor-mode) }
     if correction-label != none { new-cfg.insert("correction-label", correction-label) }
     if correction-renderer != none { new-cfg.insert("correction-renderer", correction-renderer) }
+    // Trous
+    if trou-fill != none { new-cfg.insert("trou-fill", trou-fill) }
+    if trou-scale != none { new-cfg.insert("trou-scale", trou-scale) }
+    if trou-line-gap != none { new-cfg.insert("trou-line-gap", trou-line-gap) }
+    if trou-frame != none { new-cfg.insert("trou-frame", trou-frame) }
+    if trou-color != none { new-cfg.insert("trou-color", trou-color) }
+    if trou-padding != none { new-cfg.insert("trou-padding", trou-padding) }
+    if trou-min-height != none { new-cfg.insert("trou-min-height", trou-min-height) }
+    if trou-max-height != none { new-cfg.insert("trou-max-height", trou-max-height) }
+    if trou-hint-size != none { new-cfg.insert("trou-hint-size", trou-hint-size) }
+    if trou-mark-instructor != none { new-cfg.insert("trou-mark-instructor", trou-mark-instructor) }
+    if trou-mark-color != none { new-cfg.insert("trou-mark-color", trou-mark-color) }
     // QR sidebar
     if qr-renderer != none { new-cfg.insert("qr-renderer", qr-renderer) }
     if qr-width != none { new-cfg.insert("qr-width", qr-width) }
@@ -526,6 +720,8 @@
     let gap = 8mm
     let n = calc.ceil(height / gap) + 1
     block(width: 100%, height: height, clip: true, breakable: false)[
+      #set par(spacing: 0pt, leading: 0pt)
+      #set block(spacing: 0pt)
       #for _ in range(n) {
         v(gap - 0.5pt)
         line(length: 100%, stroke: 0.4pt + luma(72%))
@@ -641,6 +837,13 @@
     [#body#_fill-space(space, space-height)]
   } else { body }
 
+  // Mark the body as environment-internal for any trou it contains
+  let body = {
+    _trou-depth.update(d => d + 1)
+    body
+    _trou-depth.update(d => d - 1)
+  }
+
   // Handle numbering
   let ref-number-value = none
   let num = if number == none {
@@ -663,6 +866,16 @@
 
   // Get spacing
   let spacing = get-env-spacing(type, cfg)
+
+  // Resolve the colour a style's non-accent variants should paint with
+  let cfg = {
+    let c = cfg
+    c.insert("base-color", if cfg.env-colors { env-color } else { process-color(cfg.accent-color, cfg) })
+    c
+  }
+
+  // Redistribute label / name / number according to header-layout
+  let (label-text, name, num) = _apply-header-layout(cfg, type, label-text, name, num)
 
   let rendered = if type == "proof" {
     (style-dict.proof)(body, cfg)
@@ -1068,6 +1281,37 @@
 // LANGUAGE PRESETS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Restores the built-in English labels, plurals and abbreviations, so a
+// document can come back from preset-french / preset-german / preset-spanish.
+#let preset-english() = beautiframe-setup(
+  theorem-label: "Theorem",
+  definition-label: "Definition",
+  lemma-label: "Lemma",
+  proposition-label: "Proposition",
+  corollary-label: "Corollary",
+  remark-label: "Remark",
+  example-label: "Example",
+  proof-label: "Proof",
+  // Plurals
+  theorem-plural: "Theorems",
+  definition-plural: "Definitions",
+  lemma-plural: "Lemmas",
+  proposition-plural: "Propositions",
+  corollary-plural: "Corollaries",
+  remark-plural: "Remarks",
+  example-plural: "Examples",
+  // Abbreviations
+  theorem-abbrev: "Thm",
+  definition-abbrev: "Def",
+  lemma-abbrev: "Lem",
+  proposition-abbrev: "Prop",
+  corollary-abbrev: "Cor",
+  remark-abbrev: "Rem",
+  example-abbrev: "Ex",
+  proof-abbrev: "Pf",
+  prefix-separator: ":",
+)
+
 #let preset-french() = beautiframe-setup(
   theorem-label: "Théorème",
   definition-label: "Définition",
@@ -1085,6 +1329,17 @@
   corollary-plural: "Corollaires",
   remark-plural: "Remarques",
   example-plural: "Exemples",
+  // Abréviations
+  theorem-abbrev: "Thm",
+  definition-abbrev: "Déf",
+  lemma-abbrev: "Lem",
+  proposition-abbrev: "Prop",
+  corollary-abbrev: "Cor",
+  remark-abbrev: "Rem",
+  example-abbrev: "Ex",
+  proof-abbrev: "Pr",
+  // Espace fine insécable avant le deux-points
+  prefix-separator: sym.space.nobreak.narrow + ":",
 )
 
 #let preset-german() = beautiframe-setup(
@@ -1403,4 +1658,184 @@
     proof-label:         "Preuve",
   )
   qed-square()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TROUS - reserved fill-in space that carries the instructor content
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// A trou holds the content that is produced live in class (the example, the
+// counterexample, the class's answer, the sketch). It renders as reserved,
+// correctly sized blank space in the student build, and as the content itself
+// in the instructor build (beautiframe-setup(instructor-mode: true)).
+//
+//   #trou[La suite $1/n$ tend vers $0$ sans jamais l'atteindre.]
+//   #trou(hint: [contre-exemple], fill: "lines")[La fonction de Dirichlet.]
+//   #trou(height: 4cm)[...]                 // fixed height instead of measured
+//   Une fonction #trou-inline[continue] sur $[a; b]$ ...
+//
+// Styles may provide their own `trou` renderer in their style dict; the
+// generic renderer below is used when they do not.
+
+// Ink used for rules and frames in the student build.
+#let _trou-color(cfg) = {
+  if cfg.color-mode == "bw" { black } else { cfg.trou-color }
+}
+
+// Ink used to flag filled content in the instructor build.
+#let _trou-mark-color(cfg) = {
+  let c = if cfg.trou-mark-color != none { cfg.trou-mark-color } else { cfg.accent-color }
+  process-color(c, cfg)
+}
+
+// The reserved area itself: a fixed-height block, optionally ruled or dotted.
+#let _trou-interior(fill-kind, height, color, gap: 8mm) = {
+  if fill-kind == "lines" {
+    let n = calc.max(1, calc.floor(height / gap))
+    block(width: 100%, height: height, clip: true, breakable: false)[
+      // Rules are block-level: kill paragraph and block spacing so the pitch
+      // is exactly `gap`
+      #set par(spacing: 0pt, leading: 0pt)
+      #set block(spacing: 0pt)
+      #for _ in range(n) {
+        v(gap - 0.5pt)
+        line(length: 100%, stroke: 0.4pt + color)
+      }
+    ]
+  } else if fill-kind == "grid" {
+    block(
+      width: 100%, height: height, clip: true, breakable: false,
+      fill: tiling(size: (5mm, 5mm))[
+        #place(dx: 2.5mm, dy: 2.5mm, circle(radius: 0.55pt, fill: color))
+      ],
+    )[]
+  } else {
+    block(width: 100%, height: height, breakable: false)[]
+  }
+}
+
+// Generic renderer, used by styles that do not define their own.
+#let _default-trou(interior, hint, cfg, color, nested: false) = {
+  block(
+    width: 100%,
+    above: 0.7em,
+    below: 0.7em,
+    breakable: false,
+    stroke: if cfg.trou-frame { 0.5pt + color } else { none },
+    radius: cfg.border-radius,
+    inset: if cfg.trou-frame { (x: 0.5em, y: 0.45em) } else { (x: 0pt, y: 0pt) },
+  )[
+    #if hint != none [
+      #text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+      #v(0.2em, weak: true)
+    ]
+    #interior
+  ]
+}
+
+// Instructor build: the content, flagged so it is easy to spot on the sheet.
+#let _trou-instructor(body, hint, cfg) = {
+  if not cfg.trou-mark-instructor {
+    body
+  } else {
+    let color = _trou-mark-color(cfg)
+    block(
+      width: 100%,
+      above: 0.7em,
+      below: 0.7em,
+      breakable: true,
+      stroke: (left: 2pt + color),
+      inset: (left: 0.7em, y: 0.35em),
+    )[
+      #if hint != none [
+        #text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+        #v(0.2em, weak: true)
+      ]
+      #body
+    ]
+  }
+}
+
+/// Reserved fill-in space carrying the content produced in class.
+/// - height: `auto` measures the body, or give a fixed length
+/// - fill: `auto` (config), "empty", "lines" or "grid"
+/// - frame: `auto` (config), true or false
+/// - hint: short cue printed in the student build ("contre-exemple", "esquisse")
+/// - min-height / padding: override the configured minimum and breathing room
+#let trou(
+  height: auto,
+  fill: auto,
+  frame: auto,
+  hint: none,
+  min-height: auto,
+  padding: auto,
+  scale: auto,
+  body,
+) = context {
+  let cfg = beautiframe-config.get()
+
+  if cfg.instructor-mode {
+    _trou-instructor(body, hint, cfg)
+  } else {
+    let cfg = if frame == auto { cfg } else {
+      let c = cfg
+      c.insert("trou-frame", frame)
+      c
+    }
+    let fill-kind = if fill == auto { cfg.trou-fill } else { fill }
+    let pad = if padding == auto { cfg.trou-padding } else { padding }
+    let minh = if min-height == auto { cfg.trou-min-height } else { min-height }
+    let sc = if scale == auto { cfg.trou-scale } else { scale }
+    let gap = cfg.trou-line-gap
+    let color = _trou-color(cfg)
+    let style-dict = styles.at(cfg.style)
+    let render = style-dict.at("trou", default: _default-trou)
+    let nested = _trou-depth.get() > 0
+
+    layout(size => {
+      // An explicit height is taken as given; a measured one is scaled up,
+      // since handwriting needs far more room than typeset text.
+      let h = if height != auto {
+        height.to-absolute()
+      } else {
+        measure(block(width: size.width, body)).height * sc + pad.to-absolute()
+      }
+      let h = calc.max(h, minh.to-absolute())
+      // Ruled space snaps up to a whole number of lines
+      let h = if fill-kind == "lines" { calc.ceil(h / gap) * gap } else { h }
+      let h = if cfg.trou-max-height != none {
+        calc.min(h, cfg.trou-max-height.to-absolute())
+      } else { h }
+
+      render(
+        _trou-interior(fill-kind, h, color, gap: gap),
+        hint, cfg, color, nested: nested,
+      )
+    })
+  }
+}
+
+/// Inline blank, for a single word or expression left out of a printed
+/// sentence. Sized to the hidden content unless `width` is given.
+#let trou-inline(width: auto, body) = context {
+  let cfg = beautiframe-config.get()
+
+  if cfg.instructor-mode {
+    if cfg.trou-mark-instructor {
+      underline(stroke: 0.6pt + _trou-mark-color(cfg), offset: 2.5pt, evade: false, body)
+    } else {
+      body
+    }
+  } else {
+    let w = if width != auto {
+      width
+    } else {
+      measure(body).width * cfg.trou-scale + 0.6em
+    }
+    box(
+      width: w,
+      height: 0.85em,
+      stroke: (bottom: 0.5pt + _trou-color(cfg)),
+    )[]
+  }
 }

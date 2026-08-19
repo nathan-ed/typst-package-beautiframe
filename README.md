@@ -1,6 +1,6 @@
 # beautiframe
 
-[![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.0-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
+[![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.5-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
 [![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/48882d454fc52d02e61b06c96197a4eb5245064d/docs/manual.pdf)
 [![Distributed under the MIT license](https://img.shields.io/badge/License-MIT-333333?labelColor=eee)](LICENSE)
 
@@ -32,6 +32,12 @@ Beautiful theorem-like environments with 9 distinctive styles and a French math 
 <tr>
 <td colspan="2"><strong>French Math Preset &amp; New Features</strong><br><img src="gallery/french-math.svg" alt="French math preset showing theoreme, formule, pratique and defi environments"></td>
 </tr>
+<tr>
+<td colspan="2"><strong>Trous</strong> (student and instructor builds)<br><img src="gallery/trous.svg" alt="the same source rendered twice: reserved ruled and dotted space in the student build, the written content in the instructor build"></td>
+</tr>
+<tr>
+<td colspan="2"><strong>Header Layout &amp; Per-Environment Colors</strong><br><img src="gallery/header-layout.svg" alt="the three header layouts label-first, title-first and prefix, then per-environment colors and perceptual background tints"></td>
+</tr>
 </table>
 
 ## Features
@@ -50,12 +56,16 @@ Beautiful theorem-like environments with 9 distinctive styles and a French math 
 - **Section-linked numbering**: LaTeX `\numberwithin`-style "Theorem 2.1.3" with per-section reset (opt-in)
 - **Instructor mode**: one source, two documents — corrections and instructor-only blocks hidden in the student build
 - **Student fill space**: blank, ruled lines, or dot grid appended inside any environment
+- **Per-environment colors everywhere**: `env-colors: true` makes every variant of every style follow `theorem-color`, `example-color`, … (not just the `accent` variants); `label-color: "base"` paints the header in the same colour
+- **Perceptual background tints**: `background-tint: auto` lightens each colour until it reaches the same perceived lightness, so a yellow tint reads as strongly as a green one
+- **Header layout**: `header-layout: "title-first"` / `"prefix"` swaps the emphasis so the title leads and the label follows (`What is analysis? (Rem 2)`, `Rem 2: What is analysis?`), in every style
+- **Trous**: `#trou[...]` reserves space sized to the hidden content (scaled by a handwriting factor, snapped to the ruling) in the student build and prints that content in the instructor build; `#trou-inline[...]` blanks a single word
 - **Print-friendly modes**: color, grayscale, black & white
 
 ## Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.4.0": *
+#import "@preview/beautiframe:0.4.5": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -200,7 +210,7 @@ Voir #env-refs(<def-limite>, <prop-limite>, page: false).
 One-call setup for French secondary math courses:
 
 ```typst
-#import "@preview/beautiframe:0.4.0": *
+#import "@preview/beautiframe:0.4.5": *
 
 // Color version (cours style, blue accent, bold labels, QED square)
 #preset-french-math()
@@ -219,7 +229,7 @@ One-call setup for French secondary math courses:
   Calculer la dérivée de $f(x)=x^3$.
 ]
 #guided-example(title: "Méthode guidée")[On détaille chaque étape.]
-#formule[Les solutions de $a x^2 + b x + c = 0$ sont $x = (-b plus.minus sqrt(b^2 - 4ac)) / (2a)$.]
+#formule[Les solutions de $a x^2 + b x + c = 0$ sont $x = (-b plus.minus sqrt(b^2 - 4 a c)) / (2 a)$.]
 #preuve[Par définition de la continuité.]
 ```
 
@@ -261,6 +271,43 @@ Append blank space for students to write in, inside any environment:
 
 `space:` values: `"empty"` (blank), `"lines"` (8mm ruled lines), `"grid"` (5mm dot grid).
 Default `space-height` is 3cm.
+
+## Trous
+
+Where `space:` appends anonymous blank space, a trou *carries* the content the
+class is meant to produce there. It prints as reserved space in the student
+build and as the content itself in the instructor build, from one source file:
+
+```typst
+#trou[La suite 1/n tend vers 0 sans jamais l'atteindre.]
+
+#trou(hint: [contre-exemple])[La fonction de Dirichlet.]
+
+#trou(fill: "lines", height: 4cm)[Esquisse du graphe.]
+
+Une fonction #trou-inline[continue] sur [a; b] atteint ses bornes.
+
+// The instructor build is one switch away
+#beautiframe-setup(instructor-mode: true)
+```
+
+The reserved height is measured from the hidden content and multiplied by
+`trou-scale` (default `2.0`), because a hand needs about twice the room typeset
+text occupies; with `fill: "lines"` it then snaps up to a whole number of
+`trou-line-gap` rules. An explicit `height:` is used as given. Every style
+renders trous in its own visual language.
+
+## Header Layout
+
+Which half of the header carries the emphasis:
+
+```typst
+#beautiframe-setup(header-layout: "label-first")  // Remark 2 (What is analysis?)  [default]
+#beautiframe-setup(header-layout: "title-first")  // What is analysis? (Remark 2)
+#beautiframe-setup(header-layout: "prefix", label-abbrev: true)  // Rem 2: What is analysis?
+```
+
+Only environments that have a title are affected, and every style follows.
 
 ## Variant Mapping
 
@@ -309,6 +356,7 @@ Boxed style has 4 additional variants: `titled`, `centered`, `corner`, `corner2`
 #preset-french()   // Théorème, Définition, Preuve...
 #preset-german()   // Satz, Definition, Beweis...
 #preset-spanish()  // Teorema, Definición, Demostración...
+#preset-english()  // Back to the built-in Theorem, Definition, Proof...
 ```
 
 ## Color Themes
@@ -348,6 +396,22 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
   accent-color: rgb("#2980b9"),
   theorem-color: rgb("#c0392b"),
   definition-color: rgb("#2980b9"),
+  env-colors: false,             // true = every variant follows the per-environment colors
+  label-color: auto,             // auto | "base" | a color
+  background-tint: auto,         // auto = perceptual, or a ratio like 92%
+  background-lightness: 0.93,    // target lightness of tints, 0..1
+
+  // Header layout
+  header-layout: "label-first",  // label-first, title-first, prefix
+  label-abbrev: false,           // demote labels to theorem-abbrev, remark-abbrev, ...
+  prefix-separator: ":",
+
+  // Trous
+  trou-fill: "empty",            // empty, lines, grid
+  trou-scale: 2.0,               // handwriting factor on the measured height
+  trou-line-gap: 8mm,
+  trou-frame: true,
+  trou-min-height: 1cm,
 
   // Typography
   label-size: 1em,               // Defaults to body font size
@@ -383,6 +447,19 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 ```
 
 ## Changelog
+
+### [0.4.5] - 2026-08-19
+
+#### Added
+- **Trous** (`trou`, `trou-inline`): fill-in space that *carries* its content. The student build prints reserved, correctly sized blank space; the instructor build (`instructor-mode: true`) prints the content itself, flagged in the accent colour. The reserved height is measured from the hidden content and multiplied by `trou-scale` (default `2.0`, a handwriting factor), then snapped to a whole number of `trou-line-gap` rules when `fill: "lines"`; an explicit `height:` is used as given. Per-call `height`, `scale`, `fill` (`"empty"` / `"lines"` / `"grid"`), `frame`, `hint`, `min-height`, `padding`; config `trou-fill`, `trou-scale`, `trou-line-gap`, `trou-frame`, `trou-color`, `trou-padding`, `trou-min-height`, `trou-max-height`, `trou-hint-size`, `trou-mark-instructor`, `trou-mark-color`. Every style renders trous in its own visual language, and a trou inside an environment body drops the label-column layout since that column is already taken.
+- `header-layout` redistributes the two halves of an environment header: `"label-first"` (default, *Remark 2 (What is analysis?)*), `"title-first"` (*What is analysis? (Remark 2)*), `"prefix"` (*Rem 2: What is analysis?*, separator configurable via `prefix-separator`). It applies to every style, since the redistribution happens before the style is called, and only to environments that have a title.
+- `label-abbrev: true` demotes labels to the short forms `theorem-abbrev`, `definition-abbrev`, `lemma-abbrev`, `proposition-abbrev`, `corollary-abbrev`, `remark-abbrev`, `example-abbrev`, `proof-abbrev`. Plural forms and `new-env` custom labels are never abbreviated. `preset-french()` sets the French forms and a narrow non-breaking space before the `"prefix"` colon.
+- `env-colors: true` makes *every* variant of *every* style follow the per-environment colours (`theorem-color`, `example-color`, …), not just the `accent` variants. Styles now read the resolved `base-color` instead of `accent-color`, so the setting is honoured everywhere, boxed-only variants (`titled`, `centered`, `corner`, `corner2`) included.
+- `preset-english()` restores the built-in English labels, plurals and abbreviations — the way back from `preset-french()`, `preset-german()`, `preset-spanish()` or `preset-french-math()`.
+- `label-color` controls header ink: `auto` (each style's own choice, default), `"base"` (follow the environment colour), or an explicit colour.
+
+#### Changed
+- Background tints of filled boxes are now perceptual by default (`background-tint: auto`): each colour is lightened by however much it takes to reach `background-lightness` (default `0.93`), so a yellow tint no longer vanishes where a green shouts. Set `background-tint` to a ratio (e.g. `92%`) for the previous fixed lightening.
 
 ### [0.4.0] - 2026-07-14
 

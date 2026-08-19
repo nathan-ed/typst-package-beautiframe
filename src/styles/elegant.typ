@@ -24,7 +24,17 @@
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let format-centered-header(title, name, num, cfg, color: black, ornament: none) = {
+  let color = _label-ink(cfg, color)
   align(center, {
     if ornament != none {
       text(fill: cfg.secondary-color, ornament)
@@ -72,7 +82,7 @@
     breakable: cfg.breakable,
     inset: (x: 1.5em, y: 1em),
     {
-      format-centered-header(title, name, num, cfg, color: cfg.accent-color, ornament: ornament-primary)
+      format-centered-header(title, name, num, cfg, color: cfg.base-color, ornament: ornament-primary)
       v(cfg.header-gap + 0.4em)
       body
     }
@@ -224,6 +234,27 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space between two thin rules, hint centered
+// ═══════════════════════════════════════════════════════════════════════════
+#let elegant-trou(interior, hint, cfg, color, nested: false) = {
+  block(width: 100%, above: 0.9em, below: 0.9em, breakable: false, inset: (x: 1em), {
+    if cfg.trou-frame { line(length: 100%, stroke: 0.5pt + color) }
+    if hint != none {
+      v(0.25em, weak: true)
+      align(center)[
+        #text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+      ]
+    }
+    v(0.3em, weak: true)
+    interior
+    if cfg.trou-frame {
+      v(0.25em, weak: true)
+      line(length: 100%, stroke: 0.5pt + color)
+    }
+  })
+}
+
 #let elegant-style = (
   prominent: elegant-prominent,
   standard: elegant-standard,
@@ -232,4 +263,5 @@
   minimal: elegant-minimal,
   inline: elegant-inline,
   proof: elegant-proof,
+  trou: elegant-trou,
 )

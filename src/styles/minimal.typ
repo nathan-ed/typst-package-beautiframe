@@ -19,6 +19,15 @@
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let format-label(title, name, num, cfg, weight: "bold", style: "normal") = {
   let label = text(weight: weight, style: style, title)
   if num != none {
@@ -28,7 +37,8 @@
     let name-content = if cfg.name-style == "italic" { emph(name) } else { name }
     label = label + text(" (" + name-content + ")")
   }
-  label
+  let ink = _label-ink(cfg, none)
+  if ink == none { label } else { text(fill: ink, label) }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -146,6 +156,20 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space closed by a single baseline rule
+// ═══════════════════════════════════════════════════════════════════════════
+#let minimal-trou(interior, hint, cfg, color, nested: false) = {
+  block(width: 100%, above: 0.7em, below: 0.7em, breakable: false, {
+    if hint != none {
+      text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+      v(0.2em, weak: true)
+    }
+    interior
+    if cfg.trou-frame { line(length: 100%, stroke: 0.4pt + color) }
+  })
+}
+
 #let minimal-style = (
   prominent: minimal-prominent,
   standard: minimal-standard,
@@ -154,4 +178,5 @@
   minimal: minimal-minimal,
   inline: minimal-inline,
   proof: minimal-proof,
+  trou: minimal-trou,
 )

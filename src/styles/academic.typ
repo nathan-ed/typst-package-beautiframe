@@ -19,8 +19,18 @@
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let format-header-caps(title, name, num, cfg) = {
-  text(weight: "bold", upper(title))
+  set text(fill: _label-ink(cfg, none)) if _label-ink(cfg, none) != none
+    text(weight: "bold", upper(title))
   if num != none {
     text(weight: "bold", [ #num])
   }
@@ -31,7 +41,8 @@
 }
 
 #let format-header-normal(title, name, num, cfg, weight: "bold") = {
-  text(weight: weight, title)
+  set text(fill: _label-ink(cfg, none)) if _label-ink(cfg, none) != none
+    text(weight: weight, title)
   if num != none {
     text(weight: weight, [ #num])
   }
@@ -169,6 +180,27 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space in a thin frame
+// ═══════════════════════════════════════════════════════════════════════════
+#let academic-trou(interior, hint, cfg, color, nested: false) = {
+  block(
+    width: 100%,
+    above: 0.6em,
+    below: 0.6em,
+    breakable: false,
+    stroke: if cfg.trou-frame { 0.4pt + color } else { none },
+    inset: if cfg.trou-frame { (x: 0.5em, y: 0.45em) } else { (x: 0pt, y: 0pt) },
+    {
+      if hint != none {
+        text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+        v(0.2em, weak: true)
+      }
+      interior
+    },
+  )
+}
+
 #let academic-style = (
   prominent: academic-prominent,
   standard: academic-standard,
@@ -177,4 +209,5 @@
   minimal: academic-minimal,
   inline: academic-inline,
   proof: academic-proof,
+  trou: academic-trou,
 )

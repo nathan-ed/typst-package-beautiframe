@@ -1,4 +1,4 @@
-#import "@preview/beautiframe:0.4.0": *
+#import "@preview/beautiframe:0.4.5": *
 
 #set document(title: "Beautiframe Manual", author: "Nathan Scheinmann")
 #set page(
@@ -20,7 +20,7 @@
   #v(0.5em)
   #text(size: 16pt, fill: gray)[Beautiful Theorem-Like Environments for Typst]
   #v(1em)
-  #text(size: 12pt)[Version 0.4.0]
+  #text(size: 12pt)[Version 0.4.5]
   #v(2cm)
   #text(size: 11pt)[Nathan Scheinmann]
   #v(4cm)
@@ -50,12 +50,13 @@
 - *QR sidebar*: attach a QR code column to any environment
 - *Environment references*: label theorem-like blocks and link back to their page
 - *Student fill space*: blank, ruled lines, or dot grid appended inside any environment
+- *Trous*: fill-in blanks that hold the content of the instructor build
 - *Print-friendly modes*: color, grayscale, black & white
 
 == Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.4.0": *
+#import "@preview/beautiframe:0.4.5": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -73,7 +74,7 @@
 === French Math Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.4.0": *
+#import "@preview/beautiframe:0.4.5": *
 
 #preset-french-math()   // or #preset-french-math-bw()
 
@@ -271,6 +272,11 @@ Voir #env-refs(<def-limite>, <prop-limite>, page: false).
 // -> Définition 1 et Proposition 2
 ```
 
+=== Aliases
+
+`envref` and `envrefs` are shorter spellings of `env-ref` and `env-refs`; they
+take the same arguments.
+
 === Counter Reset
 
 Reset all counters manually:
@@ -450,6 +456,9 @@ Variants: `standard` (accent-colored border and label), `accent` (per-env color)
 #pagebreak()
 
 = Variants
+
+// The bw/cours demos above set the French preset; come back to English.
+#preset-english()
 
 Each style provides variants that can be assigned to any environment type. The 6 core variants are available in all styles:
 
@@ -792,8 +801,6 @@ Beautiframe provides several QED symbol presets:
 
 == Per-Environment Colors
 
-Used primarily by the colorful style:
-
 ```typst
 #beautiframe-setup(
   theorem-color: rgb("#c0392b"),    // Red
@@ -803,6 +810,113 @@ Used primarily by the colorful style:
   remark-color: rgb("#7f8c8d"),     // Gray
 )
 ```
+
+By default only the `accent` variants paint with these colors: every other
+variant uses the single `accent-color`, so a document keeps one uniform hue.
+Set `env-colors: true` to make *all* variants of *all* styles follow the
+per-environment colors, including the boxed-only variants (`titled`,
+`centered`, `corner`, `corner2`):
+
+```typst
+#beautiframe-setup(env-colors: true)
+```
+
+#beautiframe-setup(style: "boxed", env-colors: false)
+#beautiframe-reset()
+
+*Default (`env-colors: false`) — one accent hue for every environment:*
+#theorem(number: none)[Every frame uses `accent-color`.]
+#example(number: none)[Including this one.]
+
+#beautiframe-setup(env-colors: true)
+#beautiframe-reset()
+
+*With `env-colors: true` — each environment paints with its own colour:*
+#theorem(number: none)[Red, from `theorem-color`.]
+#example(number: none)[Green, from `example-color`.]
+
+#beautiframe-setup(env-colors: false)
+
+== Label Ink
+
+`label-color` decides what the header text is painted with:
+
+```typst
+#beautiframe-setup(label-color: auto)       // each style's own choice (default)
+#beautiframe-setup(label-color: "base")     // follow the environment colour
+#beautiframe-setup(label-color: red)        // one explicit colour everywhere
+```
+
+`"base"` combined with `env-colors: true` gives a header written in the same
+colour as its frame, which pairs well with `header-layout: "prefix"`:
+
+```typst
+#beautiframe-setup(
+  env-colors: true, label-color: "base",
+  header-layout: "prefix", label-abbrev: true,
+)
+// → Thm 1: Théorème de Pythagore   (title and frame both in the theorem colour)
+```
+
+#beautiframe-setup(
+  style: "boxed", env-colors: true, label-color: "base",
+  header-layout: "prefix", label-abbrev: true,
+)
+#beautiframe-reset()
+
+#theorem(name: "Pythagore")[In a right triangle: $a^2 + b^2 = c^2$.]
+#example(name: "A first check")[$3^2 + 4^2 = 5^2$.]
+
+#beautiframe-setup(
+  env-colors: false, label-color: auto,
+  header-layout: "label-first", label-abbrev: false,
+)
+
+== Background Tints
+
+Filled boxes tint their colour towards white. A *fixed* lightening makes light
+hues vanish and dark hues shout: a yellow lightened by 92% is barely visible
+while a green still reads strongly. The default `background-tint: auto`
+therefore lightens each colour by however much it takes to reach
+`background-lightness`, so every tint reads with the same strength.
+
+```typst
+#beautiframe-setup(background-tint: auto)        // perceptual (default)
+#beautiframe-setup(background-lightness: 0.93)   // target lightness, 0..1
+#beautiframe-setup(background-tint: 92%)         // fixed lightening for all hues
+```
+
+Lower `background-lightness` for stronger tints, raise it for paler ones.
+
+#beautiframe-setup(
+  style: "colorful", env-colors: true,
+  default-variant: "accent",       // filled boxes, so the tint is what varies
+  theorem-color: rgb("#1a3d7c"),   // dark navy
+  remark-color: rgb("#e8b500"),    // pale yellow
+  example-color: rgb("#27ae60"),   // mid green
+)
+
+*Fixed lightening (`background-tint: 92%`) — the yellow all but disappears:*
+#beautiframe-setup(background-tint: 92%)
+#beautiframe-reset()
+#theorem(number: none)[Navy tint.]
+#remark(number: none)[Yellow tint.]
+#example(number: none)[Green tint.]
+
+*Perceptual (`background-tint: auto`, the default) — every tint reads alike:*
+#beautiframe-setup(background-tint: auto)
+#beautiframe-reset()
+#theorem(number: none)[Navy tint.]
+#remark(number: none)[Yellow tint.]
+#example(number: none)[Green tint.]
+
+#beautiframe-setup(
+  env-colors: false, default-variant: none,
+  theorem-variant: "prominent", definition-variant: "standard",
+  lemma-variant: "standard", remark-variant: "subtle", example-variant: "accent",
+  theorem-color: rgb("#c0392b"), remark-color: rgb("#7f8c8d"),
+  example-color: rgb("#27ae60"),
+)
 
 == Color Themes
 
@@ -863,6 +977,16 @@ For B&W printing:
 
 = Language Presets
 
+== English
+
+`preset-english()` restores the built-in English labels, plurals and
+abbreviations. It is the way back after `preset-french()`, `preset-german()`,
+`preset-spanish()` or `preset-french-math()`.
+
+```typst
+#preset-english()
+```
+
 == French
 
 ```typst
@@ -902,6 +1026,8 @@ For B&W printing:
 #theorem(name: "Pitágoras")[En un triángulo rectángulo: $a^2 + b^2 = c^2$]
 #definition[Una función continua preserva límites.]
 #proof[Inmediato.]
+
+#preset-english()
 
 == Custom Labels
 
@@ -1034,6 +1160,7 @@ All environments support a `plural` parameter. Default plurals are provided for 
 Language presets automatically set the correct plural forms:
 
 ```typst
+#preset-english() // Sets: Theorems, Definitions, Lemmas, etc.
 #preset-french()  // Sets: Théorèmes, Définitions, Lemmes, etc.
 #preset-german()  // Sets: Sätze, Definitionen, Lemmata, etc.
 #preset-spanish() // Sets: Teoremas, Definiciones, Lemas, etc.
@@ -1090,6 +1217,8 @@ All French environments accept `name:` / `title:` (alias), `qr:`, `space:`, `spa
   [`formule`], [Formule], [lemma], [Yes],
   [`formules(...)`], [Formules], [lemma], [Yes],
   [`methode`], [Méthode], [proposition], [Yes],
+  [`regles`], [Règle], [proposition], [No],
+  [`guided-example`], [Exemple guidé], [example], [Yes],
   [`notation(...)`], [Notation], [remark], [No],
   [`discussion(...)`], [Discussion], [remark], [No],
   [`objectifs` / `objectif`], [Objectifs d'apprentissage], [lemma], [No],
@@ -1142,6 +1271,8 @@ Collect formulas throughout a chapter and print them all at once in a recap box 
 
 // Keep the list for a second recap (clear: false)
 #formules-recap(clear: false)
+
+#recap-formules()   // alias of formules-recap
 ```
 
 | Parameter | Type | Default | Description |
@@ -1193,7 +1324,7 @@ Three unnumbered environments intended for course structure:
 == Example
 
 ```typst
-#import "@preview/beautiframe:0.4.0": *
+#import "@preview/beautiframe:0.4.5": *
 #preset-french-math()
 
 #theoreme(name: "Pythagore")[
@@ -1353,6 +1484,200 @@ Append a blank fill area inside any environment for students to write their answ
 
 #pagebreak()
 
+= Header Layout
+
+#preset-english()
+
+By default the environment label leads and the title follows in parentheses:
+*Remark 2 (What is analysis?)*. When the title is the interesting half, swap
+the emphasis with `header-layout`.
+
+#table(
+  columns: (auto, auto),
+  inset: 6pt,
+  align: left,
+  table.header([*Value*], [*Renders*]),
+  [`"label-first"` (default)], [Remark 2 (What is analysis?)],
+  [`"title-first"`], [What is analysis? (Remark 2)],
+  [`"prefix"`], [Rem 2: What is analysis?],
+)
+
+```typst
+#beautiframe-setup(
+  header-layout: "title-first",   // or "prefix"
+  label-abbrev: true,             // Remark → Rem, Theorem → Thm, …
+  prefix-separator: ":",          // used by "prefix"
+)
+```
+
+The swap only applies to environments that *have* a title: `#definition[...]`
+without a name keeps rendering as `Definition 1`, since there is nothing to
+promote. Plural forms and custom `new-env` labels are never abbreviated.
+
+Every style follows automatically, because the redistribution happens before
+the style is called: styles keep rendering their prominent half and their
+secondary half, and only the content of those halves changes. In `"prefix"`
+the demoted label is set at regular weight so the title carries the emphasis.
+
+#beautiframe-setup(style: "classic")
+
+*`header-layout: "label-first"` (default):*
+#beautiframe-setup(header-layout: "label-first", label-abbrev: false)
+#beautiframe-reset()
+#remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*`header-layout: "title-first"`:*
+#beautiframe-setup(header-layout: "title-first")
+#beautiframe-reset()
+#remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*`header-layout: "prefix"` with `label-abbrev: true`:*
+#beautiframe-setup(header-layout: "prefix", label-abbrev: true)
+#beautiframe-reset()
+#remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*A nameless environment is untouched by the layout:*
+#beautiframe-reset()
+#remark[There is no title here to promote, so the label stays put.]
+
+#beautiframe-setup(header-layout: "label-first", label-abbrev: false)
+
+== Abbreviations
+
+```typst
+#beautiframe-setup(
+  theorem-abbrev: "Thm", definition-abbrev: "Def", lemma-abbrev: "Lem",
+  proposition-abbrev: "Prop", corollary-abbrev: "Cor",
+  remark-abbrev: "Rem", example-abbrev: "Ex", proof-abbrev: "Pf",
+)
+```
+
+`preset-french()` sets the French forms (`Déf`, `Thm`, `Rem`, `Pr`, …) and a
+narrow non-breaking space before the colon of the `"prefix"` layout.
+
+#pagebreak()
+
+= Trous (Fill-in Blanks)
+
+A `#trou` is fill space that *carries content*. It prints as reserved, correctly
+sized blank space in the student build, and as the content itself in the
+instructor build. One source file therefore produces the sheet the class writes
+on and the sheet the teacher reads from.
+
+The reserved height is *not* the height of the typeset content: a student's
+hand needs roughly twice the room that typeset text occupies, so the measured
+height is multiplied by `trou-scale` (default `2.0`). With `fill: "lines"` the
+result then snaps up to a whole number of `trou-line-gap` rules, so three lines
+of typeset content reserve four ruled lines. An explicit `height:` overrides all
+of this and is used as given.
+
+Where `space:` appends anonymous blank space to an environment, a trou holds
+what the class is meant to produce there: the example, the counterexample, the
+answer, the sketch.
+
+== Usage
+
+```typst
+#trou[La suite $1/n$ tend vers $0$ sans jamais l'atteindre.]
+
+#trou(hint: [contre-exemple])[La fonction de Dirichlet.]
+
+#trou(fill: "lines", height: 4cm)[Esquisse du graphe.]
+
+Une fonction #trou-inline[continue] sur $[a; b]$ atteint ses bornes.
+```
+
+The instructor build is one switch away:
+
+```typst
+#beautiframe-setup(instructor-mode: true)
+```
+
+== Parameters
+
+#table(
+  columns: (auto, auto, auto),
+  inset: 6pt,
+  align: left,
+  table.header([*Parameter*], [*Default*], [*Meaning*]),
+  [`height`], [`auto`], [`auto` measures the hidden content and scales it; or give a fixed length, used as is],
+  [`scale`], [`auto`], [Handwriting factor on the measured height (falls back to `trou-scale`)],
+  [`fill`], [`auto`], [`"empty"`, `"lines"` or `"grid"` (falls back to `trou-fill`)],
+  [`frame`], [`auto`], [Frame the reserved area (falls back to `trou-frame`)],
+  [`hint`], [`none`], [Short cue printed in the student build],
+  [`min-height`], [`auto`], [Floor for the reserved height (falls back to `trou-min-height`)],
+  [`padding`], [`auto`], [Breathing room added to the measured height],
+)
+
+`#trou-inline(width: auto, body)` blanks a single word or expression inside a
+printed sentence, sized to the hidden content unless `width` is given.
+
+== Configuration
+
+```typst
+#beautiframe-setup(
+  trou-fill: "empty",          // "empty" | "lines" | "grid"
+  trou-scale: 2.0,             // handwriting factor on the measured height
+  trou-line-gap: 8mm,          // ruling pitch, and the quantum "lines" snaps to
+  trou-frame: true,            // frame the reserved space
+  trou-color: luma(65%),       // ink of rules and frames (student build)
+  trou-padding: 0.6em,         // added to the measured height
+  trou-min-height: 1cm,        // never reserve less than this
+  trou-max-height: none,       // cap the reserved height
+  trou-hint-size: 8pt,         // size of the hint text
+  trou-mark-instructor: true,  // flag filled content in the instructor build
+  trou-mark-color: none,       // none = accent-color
+)
+```
+
+== The Two Builds Side by Side
+
+#beautiframe-setup(style: "cours", instructor-mode: false)
+#beautiframe-reset()
+
+*Student build* (`instructor-mode: false`):
+
+#trou(hint: [un contre-exemple])[La fonction de Dirichlet.]
+
+#trou(fill: "lines", height: 3.2cm)[
+  On pose $u_n = 1/n$. La suite décroît vers $0$ sans jamais l'atteindre.
+]
+
+Une fonction #trou-inline[continue] sur $[a; b]$ y atteint ses bornes.
+
+#beautiframe-setup(instructor-mode: true)
+
+*Instructor build* (`instructor-mode: true`) — same source, content printed:
+
+#trou(hint: [un contre-exemple])[La fonction de Dirichlet.]
+
+#trou(fill: "lines", height: 3.2cm)[
+  On pose $u_n = 1/n$. La suite décroît vers $0$ sans jamais l'atteindre.
+]
+
+Une fonction #trou-inline[continue] sur $[a; b]$ y atteint ses bornes.
+
+#beautiframe-setup(instructor-mode: false)
+
+A trou also works inside an environment body, where it drops the label-column
+layout because that column is already taken:
+
+#beautiframe-reset()
+#exemple(name: "Suite convergente")[
+  Donner une suite qui converge vers $0$ sans jamais l'atteindre.
+  #trou(fill: "lines", height: 2.4cm)[$u_n = 1/n$ pour $n >= 1$.]
+]
+
+== Per-Style Rendering
+
+Every style renders trous in its own visual language: `bw` and `cours` and
+`classic` put the hint in their label column and the reserved space in the
+content column, `boxed` breaks the hint through the top border, `modern` and
+`colorful` keep their left bar, `elegant` sets the space between two rules,
+`minimal` closes it with a single baseline rule, and `academic` uses a thin
+frame. A trou placed *inside* an environment body automatically drops the
+label-column layout, since that column is already occupied.
+
 = API Reference
 
 == Environment Functions
@@ -1385,6 +1710,11 @@ Append a blank fill area inside any environment for students to write their answ
 #methode(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
 #notation(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
 #discussion(name: none, title: none, qr: none, space: none, space-height: 3cm)[body]
+
+// Trous — reserved space in the student build, content in the instructor build
+#trou(height: auto, scale: auto, fill: auto, frame: auto, hint: none,
+      min-height: auto, padding: auto)[body]
+#trou-inline(width: auto)[body]
 ```
 
 == Setup Function
@@ -1419,6 +1749,10 @@ Append a blank fill area inside any environment for students to write their answ
   corollary-color: rgb("#d35400"),
   remark-color: rgb("#7f8c8d"),
   example-color: rgb("#27ae60"),
+  env-colors: false,             // true = every variant follows the env colors
+  label-color: auto,             // auto | "base" | a color — ink of the header
+  background-tint: auto,         // auto = perceptual, or a ratio like 92%
+  background-lightness: 0.93,    // target lightness of the tints, 0..1
 
   // ── Typography ───────────────────────────────────────────────────────────
   label-size: 1em,               // 1em = body font size (recommended default)
@@ -1478,12 +1812,42 @@ Append a blank fill area inside any environment for students to write their answ
   remark-plural: "Remarks",
   example-plural: "Examples",
 
+  // ── Header layout ────────────────────────────────────────────────────────
+  header-layout: "label-first",  // "label-first", "title-first", "prefix"
+  label-abbrev: false,           // demote labels to the abbreviations below
+  prefix-separator: ":",         // separator of the "prefix" layout
+  theorem-abbrev: "Thm",
+  definition-abbrev: "Def",
+  lemma-abbrev: "Lem",
+  proposition-abbrev: "Prop",
+  corollary-abbrev: "Cor",
+  remark-abbrev: "Rem",
+  example-abbrev: "Ex",
+  proof-abbrev: "Pf",
+
+  // ── Trous ────────────────────────────────────────────────────────────────
+  trou-fill: "empty",            // "empty", "lines", "grid"
+  trou-scale: 2.0,               // handwriting factor on the measured height
+  trou-line-gap: 8mm,            // ruling pitch, and the quantum "lines" snaps to
+  trou-frame: true,              // frame the reserved space
+  trou-color: luma(65%),         // ink of rules and frame (student build)
+  trou-padding: 0.6em,           // added to the measured height
+  trou-min-height: 1cm,          // floor for the reserved height
+  trou-max-height: none,         // cap for the reserved height (none = uncapped)
+  trou-hint-size: 8pt,           // size of the hint text
+  trou-mark-instructor: true,    // flag filled content in the instructor build
+  trou-mark-color: none,         // none = accent-color
+
   // ── QED ──────────────────────────────────────────────────────────────────
   qed-symbol: sym.square.stroked,
 
   // ── Advanced ─────────────────────────────────────────────────────────────
   breakable: true,               // allow page breaks within environments
   color-mode: "color",           // "color", "grayscale", "bw"
+  instructor-mode: false,        // true = show corrections, instructor-only
+                                 // blocks, and the content of trous
+  correction-label: "Correction",
+  correction-renderer: none,     // (title, body) => content, or none
 
   // ── QR sidebar ───────────────────────────────────────────────────────────
   qr-renderer: none,             // url => content function, or none to disable
@@ -1504,6 +1868,7 @@ Append a blank fill area inside any environment for students to write their answ
 #preset-french-math-bw()            // bw style, black-and-white
 
 // Language presets
+#preset-english()                   // back to the built-in English labels
 #preset-french()
 #preset-german()
 #preset-spanish()

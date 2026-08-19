@@ -29,8 +29,17 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Shared label block (right-aligned, compact)
 // ─────────────────────────────────────────────────────────────────────────
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let _bw-label(title, name, num, cfg, color: none) = {
-  let c = if color != none { color } else { cfg.primary-color }
+  let c = _label-ink(cfg, if color != none { color } else { cfg.primary-color })
   set text(hyphenate: false)
   align(right)[
     #text(weight: cfg.label-weight, size: cfg.label-size, fill: c)[
@@ -181,6 +190,53 @@
 // Export
 // ─────────────────────────────────────────────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space in the content column, hint in the label column
+// ═══════════════════════════════════════════════════════════════════════════
+#let bw-trou(interior, hint, cfg, color, nested: false) = {
+  if nested {
+    // Inside an environment body: no label column, plain left-ruled block
+    block(
+      width: 100%,
+      above: 0.7em,
+      below: 0.7em,
+      breakable: false,
+      stroke: if cfg.trou-frame { (left: 0.7pt + color) } else { none },
+      inset: if cfg.trou-frame { (left: 0.6em, y: 0.3em) } else { (x: 0pt, y: 0pt) },
+      {
+        if hint != none {
+          text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+          v(0.2em, weak: true)
+        }
+        interior
+      },
+    )
+  } else {
+    block(width: 100%, above: 1.1em, below: 1.1em, breakable: false)[
+      #grid(
+        columns: (_col-label, 1fr),
+        column-gutter: _col-gutter,
+        align: top,
+        if hint == none { [] } else {
+          align(right)[
+            #text(size: cfg.label-size - 1pt, style: "italic", fill: color)[#hint]
+          ]
+        },
+        if cfg.trou-frame {
+          block(
+            width: 100%,
+            inset: (x: 0.5em, y: 0.4em),
+            stroke: 0.5pt + color,
+            radius: _box-radius,
+          )[#interior]
+        } else {
+          interior
+        },
+      )
+    ]
+  }
+}
+
 #let bw-style = (
   standard:  bw-standard,
   boxed:     bw-boxed,
@@ -189,4 +245,5 @@
   minimal:   bw-minimal,
   inline:    bw-inline,
   proof:     bw-proof,
+  trou: bw-trou,
 )

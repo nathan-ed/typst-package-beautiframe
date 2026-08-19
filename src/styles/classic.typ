@@ -20,7 +20,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Build label content (badge style, right-aligned)
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let build-label(title, name, num, cfg, color: black, subtitle: none) = {
+  let color = _label-ink(cfg, color)
   set text(hyphenate: false)
   align(right)[
     #box[
@@ -78,8 +88,8 @@
 
 // PROMINENT: Full badge layout with thicker border
 #let classic-prominent(title, name, num, body, cfg, env-color) = {
-  let label = build-label(title, name, num, cfg, color: cfg.accent-color)
-  grid-layout(label, body, cfg, border-color: cfg.accent-color, border-width: cfg.border-width + 0.5pt)
+  let label = build-label(title, name, num, cfg, color: cfg.base-color)
+  grid-layout(label, body, cfg, border-color: cfg.base-color, border-width: cfg.border-width + 0.5pt)
 }
 
 // STANDARD: Standard badge layout with border
@@ -153,6 +163,41 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space, hint sitting in the label column
+// ═══════════════════════════════════════════════════════════════════════════
+#let classic-trou(interior, hint, cfg, color, nested: false) = {
+  if nested {
+    // Inside an environment body: no label column, plain left-ruled block
+    block(
+      width: 100%,
+      above: 0.7em,
+      below: 0.7em,
+      breakable: false,
+      stroke: if cfg.trou-frame { (left: 0.7pt + color) } else { none },
+      inset: if cfg.trou-frame { (left: 0.6em, y: 0.3em) } else { (x: 0pt, y: 0pt) },
+      {
+        if hint != none {
+          text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+          v(0.2em, weak: true)
+        }
+        interior
+      },
+    )
+  } else {
+    let label = if hint == none { [] } else {
+      align(right)[
+        #text(size: cfg.label-size - 2pt, style: "italic", fill: color)[#hint]
+      ]
+    }
+    grid-layout(
+      label, interior, cfg,
+      border-color: color,
+      border-width: if cfg.trou-frame { 0.7pt } else { 0pt },
+    )
+  }
+}
+
 #let classic-style = (
   prominent: classic-prominent,
   standard: classic-standard,
@@ -161,4 +206,5 @@
   minimal: classic-minimal,
   inline: classic-inline,
   proof: classic-proof,
+  trou: classic-trou,
 )

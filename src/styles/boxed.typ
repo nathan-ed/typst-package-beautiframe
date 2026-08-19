@@ -20,7 +20,17 @@
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let format-header(title, name, num, cfg, color: black) = {
+  let color = _label-ink(cfg, color)
   text(weight: cfg.label-weight, size: cfg.label-size, fill: color, title)
   if num != none {
     text(weight: cfg.label-weight, size: cfg.label-size, fill: color, [ #num])
@@ -31,6 +41,26 @@
   }
 }
 
+// Relative luminance, 0 (black) to 1 (white)
+#let _luminance(color) = {
+  let comps = color.components()
+  let chan(c) = if type(c) == ratio { c / 100% } else { c / 255 }
+  chan(comps.at(0)) * 0.299 + chan(comps.at(1)) * 0.587 + chan(comps.at(2)) * 0.114
+}
+
+// Lighten until the target lightness is reached, so tints of a dark green and
+// a bright yellow read with the same strength (see background-tint in lib).
+#let _tint(color, cfg) = {
+  if cfg.at("background-tint", default: auto) != auto {
+    color.lighten(cfg.background-tint)
+  } else {
+    let l = _luminance(color)
+    let target = cfg.at("background-lightness", default: 0.93)
+    let t = if l >= target { 0.0 } else { (target - l) / (1.0 - l) }
+    color.lighten(calc.min(t, 1.0) * 100%)
+  }
+}
+
 // Get background color (B&W aware)
 #let get-bg-color(base-color, cfg) = {
   if cfg.color-mode == "bw" {
@@ -38,7 +68,7 @@
   } else if cfg.color-mode == "grayscale" {
     luma(95%)  // Very light gray
   } else {
-    base-color.lighten(92%)
+    _tint(base-color, cfg)
   }
 }
 
@@ -70,7 +100,7 @@
 
 // PROMINENT: Full border with header separated by line
 #let boxed-prominent(title, name, num, body, cfg, env-color) = {
-  let stroke-color = get-stroke-color(cfg.accent-color, cfg)
+  let stroke-color = get-stroke-color(cfg.base-color, cfg)
 
   block(
     width: 100%,
@@ -83,7 +113,7 @@
       block(
         width: 100%,
         inset: (x: 0.5em, top: 0.35em, bottom: 0.15em),
-        text(weight: cfg.label-weight, size: cfg.label-size, {
+        text(weight: cfg.label-weight, size: cfg.label-size, fill: _label-ink(cfg, black), {
           title
           if num != none { [ #num] }
           if name != none {
@@ -106,7 +136,7 @@
 
 // STANDARD: Simple box with border
 #let boxed-standard(title, name, num, body, cfg, env-color) = {
-  let stroke-color = get-stroke-color(cfg.accent-color, cfg)
+  let stroke-color = get-stroke-color(cfg.base-color, cfg)
 
   block(
     width: 100%,
@@ -197,7 +227,7 @@
     breakable: cfg.breakable,
     {
       text("[")
-      text(weight: cfg.label-weight, title)
+      text(weight: cfg.label-weight, fill: _label-ink(cfg, black), title)
       if num != none { text([ #num]) }
       if name != none {
         let name-content = if cfg.name-style == "italic" { emph(name) } else { name }
@@ -212,7 +242,7 @@
 
 // TITLED: Label breaks the top border line (beautitled-style) - closed box
 #let boxed-titled(title, name, num, body, cfg, env-color) = {
-  let stroke-color = get-stroke-color(cfg.accent-color, cfg)
+  let stroke-color = get-stroke-color(cfg.base-color, cfg)
   let stroke-width = cfg.border-width
 
   // Build the label text
@@ -227,7 +257,10 @@
     })
   }
 
-  let label-box = box(inset: (x: 0.4em), fill: white, text(weight: "bold", label-content))
+  let label-box = box(
+    inset: (x: 0.4em), fill: white,
+    text(weight: "bold", fill: _label-ink(cfg, black), label-content),
+  )
   let indent = 0.8em
 
   context {
@@ -260,7 +293,7 @@
 
 // CENTERED: Label centered at top, breaking the border (no background)
 #let boxed-centered(title, name, num, body, cfg, env-color) = {
-  let stroke-color = get-stroke-color(cfg.accent-color, cfg)
+  let stroke-color = get-stroke-color(cfg.base-color, cfg)
   let bg = if cfg.color-mode == "bw" { white } else { white }
 
   block(
@@ -277,7 +310,7 @@
         box(
           fill: bg,
           inset: (x: 0.5em, y: 0em),
-          text(weight: "bold", size: cfg.label-size, {
+          text(weight: "bold", size: cfg.label-size, fill: _label-ink(cfg, black), {
             title
             if num != none { [ #num] }
             if name != none {
@@ -295,7 +328,7 @@
 
 // CORNER: L border (top + left sides only)
 #let boxed-corner(title, name, num, body, cfg, env-color) = {
-  let stroke-color = get-stroke-color(cfg.accent-color, cfg)
+  let stroke-color = get-stroke-color(cfg.base-color, cfg)
 
   block(
     width: 100%,
@@ -309,7 +342,7 @@
     inset: cfg.inset,
     {
       // Header at top left
-      text(weight: "bold", size: cfg.label-size, {
+      text(weight: "bold", size: cfg.label-size, fill: _label-ink(cfg, black), {
         title
         if num != none { [ #num] }
         if name != none {
@@ -325,7 +358,7 @@
 
 // CORNER2: Inverted L border (left + bottom sides only)
 #let boxed-corner2(title, name, num, body, cfg, env-color) = {
-  let stroke-color = get-stroke-color(cfg.accent-color, cfg)
+  let stroke-color = get-stroke-color(cfg.base-color, cfg)
 
   block(
     width: 100%,
@@ -339,7 +372,7 @@
     inset: cfg.inset,
     {
       // Header at top left
-      text(weight: "bold", size: cfg.label-size, {
+      text(weight: "bold", size: cfg.label-size, fill: _label-ink(cfg, black), {
         title
         if num != none { [ #num] }
         if name != none {
@@ -379,6 +412,40 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: framed reserved space, hint centered at top breaking the border
+// ═══════════════════════════════════════════════════════════════════════════
+#let boxed-trou(interior, hint, cfg, color, nested: false) = {
+  let inset = (x: 0.6em, y: 0.55em)
+  block(
+    width: 100%,
+    above: 0.9em,
+    below: 0.9em,
+    breakable: false,
+    stroke: if cfg.trou-frame { 0.5pt + color } else { none },
+    radius: cfg.border-radius,
+    inset: if cfg.trou-frame { inset } else { (x: 0pt, y: 0pt) },
+    {
+      if hint != none and cfg.trou-frame {
+        place(
+          top + center,
+          dy: -inset.y - 0.5em,
+          box(
+            fill: white,
+            inset: (x: 0.5em, y: 0em),
+            text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint],
+          ),
+        )
+        v(0.3em, weak: true)
+      } else if hint != none {
+        text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+        v(0.2em, weak: true)
+      }
+      interior
+    },
+  )
+}
+
 #let boxed-style = (
   prominent: boxed-prominent,
   standard: boxed-standard,
@@ -391,4 +458,5 @@
   corner: boxed-corner,
   corner2: boxed-corner2,
   proof: boxed-proof,
+  trou: boxed-trou,
 )

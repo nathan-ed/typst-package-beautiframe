@@ -16,7 +16,17 @@
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let format-header(title, name, num, cfg, color: black) = {
+  let color = _label-ink(cfg, color)
   text(weight: cfg.label-weight, size: cfg.label-size, fill: color, title)
   if num != none {
     text(weight: cfg.label-weight, size: cfg.label-size, fill: color, [ #num])
@@ -36,10 +46,10 @@
   block(
     width: 100%,
     breakable: cfg.breakable,
-    stroke: (left: cfg.accent-color + 4pt),
+    stroke: (left: cfg.base-color + 4pt),
     inset: (left: 1.2em, y: 0.6em, right: 0.5em),
     {
-      format-header(title, name, num, cfg, color: cfg.accent-color)
+      format-header(title, name, num, cfg, color: cfg.base-color)
       v(0.4em)
       line(length: 100%, stroke: 0.75pt + cfg.secondary-color.lighten(40%))
       v(cfg.header-gap)
@@ -53,7 +63,7 @@
   block(
     width: 100%,
     breakable: cfg.breakable,
-    stroke: (left: cfg.accent-color + 3pt),
+    stroke: (left: cfg.base-color + 3pt),
     inset: (left: 1em, y: 0.5em, right: 0.5em),
     {
       format-header(title, name, num, cfg)
@@ -167,6 +177,27 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space behind the style's left bar
+// ═══════════════════════════════════════════════════════════════════════════
+#let modern-trou(interior, hint, cfg, color, nested: false) = {
+  block(
+    width: 100%,
+    above: 0.8em,
+    below: 0.8em,
+    breakable: false,
+    stroke: if cfg.trou-frame { (left: color + 2pt) } else { none },
+    inset: if cfg.trou-frame { (left: 1em, y: 0.4em, right: 0.5em) } else { (x: 0pt, y: 0pt) },
+    {
+      if hint != none {
+        text(size: cfg.trou-hint-size, weight: "semibold", fill: color)[#hint]
+        v(0.25em, weak: true)
+      }
+      interior
+    },
+  )
+}
+
 #let modern-style = (
   prominent: modern-prominent,
   standard: modern-standard,
@@ -175,4 +206,5 @@
   minimal: modern-minimal,
   inline: modern-inline,
   proof: modern-proof,
+  trou: modern-trou,
 )

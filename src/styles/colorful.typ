@@ -19,7 +19,17 @@
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let format-header(title, name, num, cfg, color: black) = {
+  let color = _label-ink(cfg, color)
   text(weight: cfg.label-weight, size: cfg.label-size, fill: color, title)
   if num != none {
     text(weight: cfg.label-weight, size: cfg.label-size, fill: color, [ #num])
@@ -35,6 +45,26 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // PROMINENT: Thick colored border, colored header
+// Relative luminance, 0 (black) to 1 (white)
+#let _luminance(color) = {
+  let comps = color.components()
+  let chan(c) = if type(c) == ratio { c / 100% } else { c / 255 }
+  chan(comps.at(0)) * 0.299 + chan(comps.at(1)) * 0.587 + chan(comps.at(2)) * 0.114
+}
+
+// Lighten until the target lightness is reached, so tints of a dark green and
+// a bright yellow read with the same strength (see background-tint in lib).
+#let _tint(color, cfg) = {
+  if cfg.at("background-tint", default: auto) != auto {
+    color.lighten(cfg.background-tint)
+  } else {
+    let l = _luminance(color)
+    let target = cfg.at("background-lightness", default: 0.93)
+    let t = if l >= target { 0.0 } else { (target - l) / (1.0 - l) }
+    color.lighten(calc.min(t, 1.0) * 100%)
+  }
+}
+
 #let colorful-prominent(title, name, num, body, cfg, env-color) = {
   block(
     width: 100%,
@@ -85,7 +115,7 @@
   // B&W aware background
   let bg-color = if cfg.color-mode == "bw" { white }
                  else if cfg.color-mode == "grayscale" { luma(95%) }
-                 else { env-color.lighten(90%) }
+                 else { _tint(env-color, cfg) }
 
   block(
     width: 100%,
@@ -161,6 +191,27 @@
 // EXPORT STYLE DICTIONARY
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space behind a left bar
+// ═══════════════════════════════════════════════════════════════════════════
+#let colorful-trou(interior, hint, cfg, color, nested: false) = {
+  block(
+    width: 100%,
+    above: 0.8em,
+    below: 0.8em,
+    breakable: false,
+    stroke: if cfg.trou-frame { (left: color + cfg.border-width) } else { none },
+    inset: if cfg.trou-frame { (left: 0.8em, y: 0.45em) } else { (x: 0pt, y: 0pt) },
+    {
+      if hint != none {
+        text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+        v(0.25em, weak: true)
+      }
+      interior
+    },
+  )
+}
+
 #let colorful-style = (
   prominent: colorful-prominent,
   standard: colorful-standard,
@@ -169,4 +220,5 @@
   minimal: colorful-minimal,
   inline: colorful-inline,
   proof: colorful-proof,
+  trou: colorful-trou,
 )

@@ -25,7 +25,17 @@
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────
 
+// Label ink: `label-color: auto` keeps each style's own choice, `"base"`
+// follows the environment colour, and an explicit colour overrides both.
+#let _label-ink(cfg, fallback) = {
+  let lc = cfg.at("label-color", default: auto)
+  if lc == auto { fallback }
+  else if lc == "base" { cfg.at("base-color", default: fallback) }
+  else { lc }
+}
+
 #let _build-label(title, name, num, cfg, color: black) = {
+  let color = _label-ink(cfg, color)
   set text(hyphenate: false)
   align(right)[
     #box[
@@ -72,8 +82,8 @@
 
 // STANDARD: black border, accent-colored label
 #let cours-standard(title, name, num, body, cfg, env-color) = {
-  let lbl = _build-label(title, name, num, cfg, color: cfg.accent-color)
-  _grid-layout(lbl, body, cfg, border-color: cfg.accent-color, border-width: cfg.border-width)
+  let lbl = _build-label(title, name, num, cfg, color: cfg.base-color)
+  _grid-layout(lbl, body, cfg, border-color: cfg.base-color, border-width: cfg.border-width)
 }
 
 // ACCENT: env-specific color for both label and border
@@ -135,6 +145,41 @@
 // Export
 // ─────────────────────────────────────────────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TROU: reserved fill-in space, hint sitting in the label column
+// ═══════════════════════════════════════════════════════════════════════════
+#let cours-trou(interior, hint, cfg, color, nested: false) = {
+  if nested {
+    // Inside an environment body: no label column, plain left-ruled block
+    block(
+      width: 100%,
+      above: 0.7em,
+      below: 0.7em,
+      breakable: false,
+      stroke: if cfg.trou-frame { (left: 0.7pt + color) } else { none },
+      inset: if cfg.trou-frame { (left: 0.6em, y: 0.3em) } else { (x: 0pt, y: 0pt) },
+      {
+        if hint != none {
+          text(size: cfg.trou-hint-size, style: "italic", fill: color)[#hint]
+          v(0.2em, weak: true)
+        }
+        interior
+      },
+    )
+  } else {
+    let label = if hint == none { [] } else {
+      align(right)[
+        #text(size: cfg.label-size - 2pt, style: "italic", fill: color)[#hint]
+      ]
+    }
+    _grid-layout(
+      label, interior, cfg,
+      border-color: color,
+      border-width: if cfg.trou-frame { 0.7pt } else { 0pt },
+    )
+  }
+}
+
 #let cours-style = (
   standard: cours-standard,
   accent:   cours-accent,
@@ -142,4 +187,5 @@
   minimal:  cours-minimal,
   inline:   cours-inline,
   proof:    cours-proof,
+  trou: cours-trou,
 )
