@@ -20,6 +20,16 @@
 #beautiframe-reset()
 #theorem(name: "Bolzano")[If $f$ is continuous on $[a; b]$, it takes every value between $f(a)$ and $f(b)$.]
 
+*`header-layout: "title-abbrev"` — the label always abbreviated:*
+#beautiframe-setup(header-layout: "title-abbrev", label-abbrev: false)
+#beautiframe-reset()
+#theorem(name: "Bolzano")[If $f$ is continuous on $[a; b]$, it takes every value between $f(a)$ and $f(b)$.]
+
+*`header-layout: "title-only"` — the title alone carries the header:*
+#beautiframe-setup(header-layout: "title-only")
+#beautiframe-reset()
+#theorem(name: "Bolzano")[If $f$ is continuous on $[a; b]$, it takes every value between $f(a)$ and $f(b)$.]
+
 *`header-layout: "prefix"` with `label-abbrev: true`:*
 #beautiframe-setup(header-layout: "prefix", label-abbrev: true)
 #beautiframe-reset()

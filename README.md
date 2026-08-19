@@ -58,7 +58,7 @@ Beautiful theorem-like environments with 9 distinctive styles and a French math 
 - **Student fill space**: blank, ruled lines, or dot grid appended inside any environment
 - **Per-environment colors everywhere**: `env-colors: true` makes every variant of every style follow `theorem-color`, `example-color`, … (not just the `accent` variants); `label-color: "base"` paints the header in the same colour
 - **Perceptual background tints**: `background-tint: auto` lightens each colour until it reaches the same perceived lightness, so a yellow tint reads as strongly as a green one
-- **Header layout**: `header-layout: "title-first"` / `"prefix"` swaps the emphasis so the title leads and the label follows (`What is analysis? (Rem 2)`, `Rem 2: What is analysis?`), in every style
+- **Header layout**: `header-layout: "title-first"` / `"title-abbrev"` / `"title-only"` / `"prefix"` swaps the emphasis so the title leads and the label follows (`What is analysis? (Rem 2)`, `Rem 2: What is analysis?`), in every style
 - **Trous**: `#trou[...]` reserves space sized to the hidden content (scaled by a handwriting factor, snapped to the ruling) in the student build and prints that content in the instructor build; `#trou-inline[...]` blanks a single word
 - **Print-friendly modes**: color, grayscale, black & white
 
@@ -302,8 +302,10 @@ renders trous in its own visual language.
 Which half of the header carries the emphasis:
 
 ```typst
-#beautiframe-setup(header-layout: "label-first")  // Remark 2 (What is analysis?)  [default]
-#beautiframe-setup(header-layout: "title-first")  // What is analysis? (Remark 2)
+#beautiframe-setup(header-layout: "label-first")   // Remark 2 (What is analysis?)  [default]
+#beautiframe-setup(header-layout: "title-first")   // What is analysis? (Remark 2)
+#beautiframe-setup(header-layout: "title-abbrev")  // What is analysis? (Rem 2)
+#beautiframe-setup(header-layout: "title-only")    // What is analysis?
 #beautiframe-setup(header-layout: "prefix", label-abbrev: true)  // Rem 2: What is analysis?
 ```
 
@@ -402,7 +404,8 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
   background-lightness: 0.93,    // target lightness of tints, 0..1
 
   // Header layout
-  header-layout: "label-first",  // label-first, title-first, prefix
+  header-layout: "label-first",  // label-first, title-first, title-abbrev,
+                                 // title-only, prefix
   label-abbrev: false,           // demote labels to theorem-abbrev, remark-abbrev, ...
   prefix-separator: ":",
 
@@ -453,7 +456,7 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 
 #### Added
 - **Trous** (`trou`, `trou-inline`): fill-in space that *carries* its content. The student build prints reserved, correctly sized blank space; the instructor build (`instructor-mode: true`) prints the content itself, flagged in the accent colour. The reserved height is measured from the hidden content and multiplied by `trou-scale` (default `2.0`, a handwriting factor), then snapped to a whole number of `trou-line-gap` rules when `fill: "lines"`; an explicit `height:` is used as given. Per-call `height`, `scale`, `fill` (`"empty"` / `"lines"` / `"grid"`), `frame`, `hint`, `min-height`, `padding`; config `trou-fill`, `trou-scale`, `trou-line-gap`, `trou-frame`, `trou-color`, `trou-padding`, `trou-min-height`, `trou-max-height`, `trou-hint-size`, `trou-mark-instructor`, `trou-mark-color`. Every style renders trous in its own visual language, and a trou inside an environment body drops the label-column layout since that column is already taken.
-- `header-layout` redistributes the two halves of an environment header: `"label-first"` (default, *Remark 2 (What is analysis?)*), `"title-first"` (*What is analysis? (Remark 2)*), `"prefix"` (*Rem 2: What is analysis?*, separator configurable via `prefix-separator`). It applies to every style, since the redistribution happens before the style is called, and only to environments that have a title.
+- `header-layout` redistributes the two halves of an environment header: `"label-first"` (default, *Remark 2 (What is analysis?)*), `"title-first"` (*What is analysis? (Remark 2)*), `"title-abbrev"` (*What is analysis? (Rem 2)*, the label always abbreviated whatever `label-abbrev` says), `"title-only"` (*What is analysis?*, label and number dropped from the header while the counter still advances, so `env-ref` keeps working), `"prefix"` (*Rem 2: What is analysis?*, separator configurable via `prefix-separator`). It applies to every style, since the redistribution happens before the style is called, and only to environments that have a title.
 - `label-abbrev: true` demotes labels to the short forms `theorem-abbrev`, `definition-abbrev`, `lemma-abbrev`, `proposition-abbrev`, `corollary-abbrev`, `remark-abbrev`, `example-abbrev`, `proof-abbrev`. Plural forms and `new-env` custom labels are never abbreviated. `preset-french()` sets the French forms and a narrow non-breaking space before the `"prefix"` colon.
 - `env-colors: true` makes *every* variant of *every* style follow the per-environment colours (`theorem-color`, `example-color`, …), not just the `accent` variants. Styles now read the resolved `base-color` instead of `accent-color`, so the setting is honoured everywhere, boxed-only variants (`titled`, `centered`, `corner`, `corner2`) included.
 - `beautiframe-reset-config()` restores every setting to its default. Configuration is global and cumulative, so this is the way back after a style, preset or theme has been applied — each chapter of a document can start from a known state.

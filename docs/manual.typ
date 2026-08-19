@@ -1180,12 +1180,19 @@ the emphasis with `header-layout`.
   header: ([Value], [Renders]),
   [`"label-first"` (default)], [Remark 2 (What is analysis?)],
   [`"title-first"`], [What is analysis? (Remark 2)],
+  [`"title-abbrev"`], [What is analysis? (Rem 2)],
+  [`"title-only"`], [What is analysis?],
   [`"prefix"`], [Rem 2: What is analysis?],
 )
 
+`"title-abbrev"` is `"title-first"` with the label always abbreviated, whatever
+`label-abbrev` says. `"title-only"` drops the label and its number from the
+header altogether; the counter still advances, so `env-ref` keeps resolving to
+the right number.
+
 ```typst
 #beautiframe-setup(
-  header-layout: "title-first",   // or "prefix"
+  header-layout: "title-first",   // or "title-abbrev", "title-only", "prefix"
   label-abbrev: true,             // Remark → Rem, Theorem → Thm, …
   prefix-separator: ":",          // used by "prefix"
 )
@@ -1212,6 +1219,17 @@ the demoted label is set at regular weight so the title carries the emphasis.
 #beautiframe-setup(header-layout: "title-first")
 #beautiframe-reset()
 #remark(name: "What is analysis?")[The study of limits, in one word.]
+
+*`header-layout: "title-abbrev"` — the label is always abbreviated:*
+#beautiframe-setup(header-layout: "title-abbrev", label-abbrev: false)
+#beautiframe-reset()
+#remark(name: "What is analysis?", number: auto)[The study of limits, in one word.]
+
+*`header-layout: "title-only"` — the title carries the header alone:*
+#beautiframe-setup(header-layout: "title-only")
+#beautiframe-reset()
+#remark(name: "What is analysis?", number: auto)[Label and number are gone from
+the header, but the counter still advances underneath.]
 
 *`header-layout: "prefix"` with `label-abbrev: true`:*
 #beautiframe-setup(header-layout: "prefix", label-abbrev: true)
@@ -1980,7 +1998,8 @@ The QR sidebar works with all environments including custom ones created with `n
   example-plural: "Examples",
 
   // ── Header layout ────────────────────────────────────────────────────────
-  header-layout: "label-first",  // "label-first", "title-first", "prefix"
+  header-layout: "label-first",  // "label-first", "title-first",
+                                 // "title-abbrev", "title-only", "prefix"
   label-abbrev: false,           // demote labels to the abbreviations below
   prefix-separator: ":",         // separator of the "prefix" layout
   theorem-abbrev: "Thm",

@@ -153,13 +153,16 @@
   // ─────────────────────────────────────────────────────────────────────────
   // HEADER LAYOUT
   // Which half of "Remark (What is analysis?)" carries the emphasis.
-  //   "label-first" — Remark 2 (What is analysis?)      [default]
-  //   "title-first" — What is analysis? (Remark 2)
-  //   "prefix"      — Rem 2: What is analysis?
+  //   "label-first"  — Remark 2 (What is analysis?)     [default]
+  //   "title-first"  — What is analysis? (Remark 2)
+  //   "title-abbrev" — What is analysis? (Rem 2)
+  //   "title-only"   — What is analysis?
+  //   "prefix"       — Rem 2: What is analysis?
   // Only applies when the environment has a name/title; otherwise the label
   // is rendered as usual.
   // ─────────────────────────────────────────────────────────────────────────
-  header-layout: "label-first",      // "label-first" | "title-first" | "prefix"
+  header-layout: "label-first",      // "label-first" | "title-first"
+                                     // "title-abbrev" | "title-only" | "prefix"
   label-abbrev: false,               // demote to the short forms below
   prefix-separator: ":",             // separator used by the "prefix" layout
 
@@ -423,6 +426,16 @@
     if cfg.header-layout == "title-first" {
       // What is analysis? (Remark 2)
       (name, demoted, none)
+    } else if cfg.header-layout == "title-only" {
+      // What is analysis?  — the label and its number are dropped from the
+      // header. The counter still advances, so env-ref keeps working.
+      (name, none, none)
+    } else if cfg.header-layout == "title-abbrev" {
+      // What is analysis? (Rem 2)  — like title-first, but the label is always
+      // abbreviated, whatever label-abbrev says.
+      let short = get-env-abbrev(env-type, cfg)
+      let abbrev = if short != none and label-text == get-env-label(env-type, cfg) { short } else { label-text }
+      (name, if num == none { [#abbrev] } else { [#abbrev #num] }, none)
     } else {
       // Rem 2: What is analysis?  — the prefix stays light, the title carries
       // the label weight applied by the style

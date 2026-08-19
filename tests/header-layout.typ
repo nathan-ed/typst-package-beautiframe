@@ -1,4 +1,4 @@
-// Renders the three header layouts across every style.
+// Renders every header layout across every style.
 #import "/src/lib.typ": *
 
 #set page(width: 17cm, height: auto, margin: 1.4cm)
@@ -29,6 +29,8 @@
   bloc(sty, variant, "label-first", false)
   bloc(sty, variant, "title-first", false)
   bloc(sty, variant, "title-first", true)
+  bloc(sty, variant, "title-abbrev", false)
+  bloc(sty, variant, "title-only", false)
   bloc(sty, variant, "prefix", true)
   pagebreak(weak: true)
 }
