@@ -331,6 +331,48 @@ Both settings also apply to custom environments created with `new-env`
 `#formule[...]` renders as "Formule 1.1". References made with `env-ref` /
 `env-refs` display the same section-linked number as the environment itself.
 
+=== Shared and Configurable Counters
+
+By default, each environment type has an independent counter (`counter-mode: "independent"`): Theorem 1, Definition 1, Lemma 1, Theorem 2.
+
+To unify all environments into a single counter (e.g. Theorem 1, Definition 2, Lemma 3), set `counter-mode: "shared"` (or `counter-shared: true`):
+
+```typst
+#beautiframe-setup(counter-mode: "shared")
+
+#theorem[...]    // Theorem 1
+#definition[...] // Definition 2
+#lemma[...]      // Lemma 3
+```
+
+You can also supply an external Typst counter defined outside:
+
+```typst
+#let my-counter = counter("my-theorems")
+#beautiframe-setup(counter-mode: my-counter)
+```
+
+For advanced counting semantics, `counter-mode` accepts a dictionary mapping environment types to built-in types, custom counter names, or external counters:
+
+```typst
+// Lemma and Proposition count along with Theorem; Definition remains independent:
+#beautiframe-setup(counter-mode: (
+  lemma: "theorem",
+  proposition: "theorem",
+  corollary: "theorem",
+))
+
+// Grouped counters:
+#beautiframe-setup(counter-mode: (
+  theorem: "results",
+  lemma: "results",
+  definition: "definitions",
+  example: "definitions",
+))
+```
+
+Custom environments created via `new-env` automatically share the unified counter in `"shared"` mode, can be mapped in `counter-mode` dictionaries, or specify an explicit `counter:` parameter (e.g. `new-env("Conjecture", counter: "theorem")`).
+
 == References
 
 Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
@@ -1977,6 +2019,8 @@ The QR sidebar works with all environments including custom ones created with `n
                                  // the first N heading levels ("Theorem 2.1.3")
   counter-reset: "manual",       // "manual" or "section" (restart at each
                                  // heading up to the link-to-section depth)
+  counter-mode: "independent",   // "independent", "shared" (or counter-shared: true),
+                                 // external counter(...) object, or dictionary / function
 
   // ── Labels (singular) ────────────────────────────────────────────────────
   theorem-label: "Theorem",
