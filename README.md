@@ -155,6 +155,38 @@ to `new-env` custom environments such as `formule`:
 
 `env-ref`/`env-refs` display the same section-linked numbers.
 
+#### Shared & Configurable Counters
+
+By default, each environment type has an independent counter (`counter-mode: "independent"`): Theorem 1, Definition 1, Lemma 1, Theorem 2.
+
+You can unify all environments into a single counter, pass an external counter directly, or configure custom groupings:
+
+```typst
+// 1. Single shared counter for all environments (Theorem 1, Definition 2, Lemma 3):
+#beautiframe-setup(counter-mode: "shared") // or counter-shared: true
+
+// 2. Or pass a single external counter defined outside:
+#let my-thm-counter = counter("my-theorems")
+#beautiframe-setup(counter-mode: my-thm-counter)
+
+// 3. Or group specific environments together (e.g. sharing Lemma & Proposition with Theorem):
+#beautiframe-setup(counter-mode: (
+  lemma: "theorem",
+  proposition: "theorem",
+  corollary: "theorem",
+))
+
+// 4. Or arbitrary named counter groups / external counters:
+#beautiframe-setup(counter-mode: (
+  theorem: counter("results"),
+  lemma: counter("results"),
+  definition: "definitions",
+  example: "definitions",
+))
+```
+
+Custom environments created via `new-env` also respect `counter-mode: "shared"`, participate in dictionary mappings, or can specify an explicit `counter:` parameter (`#let prop = new-env("Prop", counter: "theorem")`).
+
 ### References
 
 Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.

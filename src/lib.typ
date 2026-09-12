@@ -127,6 +127,13 @@
   // the link-to-section depth (level 1 when link-to-section is off).
   counter-reset: "manual",           // "manual", "section"
 
+  // Counter mode: "independent" (default) keeps separate counters for each
+  // environment type; "shared" (or true) uses a single unified counter across
+  // all environments; passing an external counter(...) makes all environments
+  // use that counter; a dictionary (or function) allows custom groupings, e.g.
+  // (lemma: "theorem", proposition: "theorem") or (theorem: my-ctr, def: other-ctr).
+  counter-mode: "independent",       // "independent" | "shared" | counter | dictionary | function
+
   // ─────────────────────────────────────────────────────────────────────────
   // LABELS (English default) - Singular
   // ─────────────────────────────────────────────────────────────────────────
@@ -261,7 +268,7 @@
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
-// COUNTERS (Independent for each environment type)
+// COUNTERS (Independent, shared, or custom grouping)
 // ═══════════════════════════════════════════════════════════════════════════
 
 #let theorem-counter = counter("beautiframe-theorem")
@@ -271,9 +278,9 @@
 #let corollary-counter = counter("beautiframe-corollary")
 #let remark-counter = counter("beautiframe-remark")
 #let example-counter = counter("beautiframe-example")
+#let shared-counter = counter("beautiframe-shared")
 
-// Get counter for a given environment type
-#let get-counter(env-type) = {
+#let _built-in-counter(env-type) = {
   if env-type == "theorem" { theorem-counter }
   else if env-type == "definition" { definition-counter }
   else if env-type == "lemma" { lemma-counter }
@@ -284,8 +291,94 @@
   else { none }
 }
 
-// Manual reset function
-#let beautiframe-reset() = {
+#let _resolve-target-counter(target, env-type, custom-label: none) = {
+  if std.type(target) == std.counter {
+    target
+  } else if target == "shared" or target == "single" or target == "unified" or target == "all" or target == "one" or target == "global" or target == true {
+    shared-counter
+  } else if target == "independent" or target == false or target == none {
+    let built-in = _built-in-counter(env-type)
+    if built-in != none and custom-label == none {
+      built-in
+    } else if custom-label != none {
+      counter("beautiframe-custom-" + str(custom-label))
+    } else {
+      counter("beautiframe-" + str(env-type))
+    }
+  } else if std.type(target) == str {
+    let built-in = _built-in-counter(target)
+    if built-in != none {
+      built-in
+    } else if target.starts-with("beautiframe-") {
+      counter(target)
+    } else {
+      counter("beautiframe-" + target)
+    }
+  } else {
+    none
+  }
+}
+
+// Get counter for a given environment type, respecting configured counter-mode
+#let get-counter(env-type, custom-label: none, cfg: none) = {
+  if cfg == none {
+    let built-in = _built-in-counter(env-type)
+    if built-in != none and custom-label == none {
+      return built-in
+    }
+    if custom-label != none {
+      return counter("beautiframe-custom-" + str(custom-label))
+    }
+    return counter("beautiframe-" + str(env-type))
+  }
+  let mode = cfg.at("counter-mode", default: "independent")
+  if std.type(mode) == std.counter {
+    return mode
+  } else if mode == "shared" or mode == "single" or mode == "unified" or mode == "all" or mode == "one" or mode == "global" or mode == true {
+    return shared-counter
+  } else if mode == "independent" or mode == false or mode == none {
+    let built-in = _built-in-counter(env-type)
+    if built-in != none and custom-label == none {
+      return built-in
+    } else if custom-label != none {
+      return counter("beautiframe-custom-" + str(custom-label))
+    } else {
+      return counter("beautiframe-" + str(env-type))
+    }
+  } else if std.type(mode) == dictionary {
+    let check-keys = ()
+    if custom-label != none {
+      check-keys.push(str(custom-label))
+      check-keys.push(lower(str(custom-label)))
+    }
+    check-keys.push(str(env-type))
+    check-keys.push(lower(str(env-type)))
+    let target = none
+    for k in check-keys {
+      if mode.keys().contains(k) {
+        target = mode.at(k)
+        break
+      }
+    }
+    if target == none {
+      target = mode.at("default", default: "independent")
+    }
+    return _resolve-target-counter(target, env-type, custom-label: custom-label)
+  } else if std.type(mode) == function {
+    let target = if custom-label != none {
+      (mode)(custom-label)
+    } else {
+      (mode)(env-type)
+    }
+    return _resolve-target-counter(target, env-type, custom-label: custom-label)
+  } else {
+    return _resolve-target-counter(mode, env-type, custom-label: custom-label)
+  }
+}
+
+// Manual reset function (resets built-in and shared counters, plus any passed in)
+#let beautiframe-reset(..counters) = {
+  shared-counter.update(0)
   theorem-counter.update(0)
   definition-counter.update(0)
   lemma-counter.update(0)
@@ -293,6 +386,17 @@
   corollary-counter.update(0)
   remark-counter.update(0)
   example-counter.update(0)
+  for c in counters.pos() {
+    if std.type(c) == std.counter {
+      c.update(0)
+    } else if std.type(c) == str {
+      if c.starts-with("beautiframe-") {
+        counter(c).update(0)
+      } else {
+        counter("beautiframe-" + c).update(0)
+      }
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -534,6 +638,8 @@
   numbering-format: none,
   link-to-section: none,
   counter-reset: none,
+  counter-mode: none,
+  counter-shared: none,
   // Labels (singular)
   theorem-label: none,
   definition-label: none,
@@ -659,6 +765,19 @@
     if numbering-format != none { new-cfg.insert("numbering-format", numbering-format) }
     if link-to-section != none { new-cfg.insert("link-to-section", link-to-section) }
     if counter-reset != none { new-cfg.insert("counter-reset", counter-reset) }
+    if counter-mode != none {
+      let resolved-mode = if counter-mode == true {
+        "shared"
+      } else if counter-mode == false {
+        "independent"
+      } else {
+        counter-mode
+      }
+      new-cfg.insert("counter-mode", resolved-mode)
+    }
+    if counter-shared != none {
+      new-cfg.insert("counter-mode", if counter-shared { "shared" } else { "independent" })
+    }
     // Labels (singular)
     if theorem-label != none { new-cfg.insert("theorem-label", theorem-label) }
     if definition-label != none { new-cfg.insert("definition-label", definition-label) }
@@ -819,6 +938,7 @@
   // Counter override (used by new-env custom environments); none = the
   // built-in counter for `type`.
   counter: none,
+  custom-label: none,
   // Student fill space appended inside the environment.
   // space: none (default) | "empty" | "lines" | "grid"
   // space-height: height of the fill area
@@ -869,7 +989,11 @@
   let num = if number == none {
     none
   } else if number == auto {
-    let ctr = if counter != none { counter } else { get-counter(type) }
+    let ctr = if counter != none and counter != auto {
+      if std.type(counter) == std.counter { counter } else { _resolve-target-counter(counter, type, custom-label: custom-label) }
+    } else {
+      get-counter(type, custom-label: custom-label, cfg: cfg)
+    }
     if ctr != none {
       ctr.step()
       let val = ctr.get().first() + 1
@@ -930,10 +1054,12 @@
   ref-number: auto,
   label: none,
   display-label: none,
+  custom-label: none,
   color: none,
   qr: none,
   instructor: false,
   counter-key: none,
+  counter: auto,
   space: none,
   space-height: 3cm,
   body,
@@ -947,9 +1073,11 @@
       target: label,
       type: type,
       display-label: display-label,
+      custom-label: custom-label,
       number: number,
       ref-number: ref-number,
       counter-key: counter-key,
+      counter: counter,
     ))
   }
   [
@@ -961,10 +1089,11 @@
       ref-number: ref-number,
       label: label,
       display-label: display-label,
+      custom-label: custom-label,
       color: color,
       qr: qr,
       instructor: instructor,
-      counter: if counter-key != none { counter(counter-key) } else { none },
+      counter: if counter != auto { counter } else if counter-key != none { counter(counter-key) } else { none },
       space: space,
       space-height: space-height,
       body,
@@ -1016,10 +1145,18 @@
     let loc = hits.first().location()
     let cfg = beautiframe-config.get()
     let label-text = if entry.display-label != none { entry.display-label } else { get-env-label(entry.type, cfg) }
-    let ctr = if entry.at("counter-key", default: none) != none {
+    let custom-lbl = entry.at("custom-label", default: none)
+    let explicit-ctr = entry.at("counter", default: auto)
+    let ctr = if explicit-ctr != none and explicit-ctr != auto {
+      if std.type(explicit-ctr) == std.counter {
+        explicit-ctr
+      } else {
+        _resolve-target-counter(explicit-ctr, entry.type, custom-label: custom-lbl)
+      }
+    } else if entry.at("counter-key", default: none) != none {
       counter(entry.counter-key)
     } else {
-      get-counter(entry.type)
+      get-counter(entry.type, custom-label: custom-lbl, cfg: cfg)
     }
     let actual-number = if entry.number == none {
       none
@@ -1245,16 +1382,15 @@
 /// - base: Which built-in env to inherit styling from ("theorem", "definition", etc.)
 /// - numbered: Whether to auto-number (default: true)
 /// - color: Optional custom color for this environment
+/// - counter: Optional counter override (auto to follow counter-mode, "shared", "independent", "theorem", or a counter(...) object)
 #let new-env(
   label,
   plural: none,
   base: "theorem",
   numbered: true,
   color: none,
+  counter: auto,
 ) = {
-  // Each custom environment gets its own counter, addressed by key so the
-  // central numbering (link-to-section, counter-reset) applies to it too.
-  let counter-key = "beautiframe-custom-" + label
   let singular-label = label
 
   // Default plural to label if not specified
@@ -1270,10 +1406,11 @@
     env(
       type: base,
       display-label: display-label,
+      custom-label: singular-label,
       color: color,
       name: actual-name,
       number: if number == auto and not numbered { none } else { number },
-      counter-key: counter-key,
+      counter: counter,
       label: label,
       qr: qr,
       instructor: instructor,
