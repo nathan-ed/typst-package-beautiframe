@@ -205,6 +205,11 @@
   // WORKED EXERCISES
   // ─────────────────────────────────────────────────────────────────────────
   instructor-mode: false,             // Show instructor-only correction content
+  // Env keys rendered only in the instructor build, e.g.
+  // ("worked-exercise", "methode"). An env names itself by the function you
+  // call: built-ins by their type ("theorem", "remark", "proof"), customs by
+  // the `key` given to `new-env`. A per-call `instructor:` overrides this list.
+  instructor-only-envs: (),
   correction-label: "Correction",     // Default correction title
   correction-renderer: none,          // (title, body) => content, or none
 
@@ -572,6 +577,7 @@
   color-mode: none,
   // Worked exercises
   instructor-mode: none,
+  instructor-only-envs: none,
   correction-label: none,
   correction-renderer: none,
   // Trous
@@ -697,6 +703,7 @@
     if color-mode != none { new-cfg.insert("color-mode", color-mode) }
     // Worked exercises
     if instructor-mode != none { new-cfg.insert("instructor-mode", instructor-mode) }
+    if instructor-only-envs != none { new-cfg.insert("instructor-only-envs", instructor-only-envs) }
     if correction-label != none { new-cfg.insert("correction-label", correction-label) }
     if correction-renderer != none { new-cfg.insert("correction-renderer", correction-renderer) }
     // Trous
@@ -803,6 +810,35 @@
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// INSTRUCTOR-ONLY ENVIRONMENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Resolve whether an environment is instructor-only. `instructor` is the
+// per-call key: auto consults `instructor-only-envs`, true and false decide on
+// their own. `env-key` is the name of the function the author writes
+// ("theorem", "methode", "worked-exercise", …).
+#let _instructor-only(instructor, env-key, cfg) = {
+  if instructor == auto {
+    env-key != none and cfg.instructor-only-envs.contains(env-key)
+  } else {
+    instructor
+  }
+}
+
+/// Whether an environment carrying `env-key` prints in the current build.
+/// Exported so a project can gate the environments it defines outside this
+/// package on the same `instructor-only-envs` list.
+/// Example:
+///   #let activite(instructor: auto, body) = context {
+///     if not env-visible("activite", instructor: instructor) { return }
+///     …
+///   }
+#let env-visible(env-key, instructor: auto) = {
+  let cfg = beautiframe-config.get()
+  not (_instructor-only(instructor, env-key, cfg) and not cfg.instructor-mode)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CORE ENVIRONMENT FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -815,7 +851,9 @@
   display-label: none,
   color: none,
   qr: none,
-  instructor: false,
+  instructor: auto,
+  // Identifies the environment in `instructor-only-envs`; none = `type`.
+  env-key: none,
   // Counter override (used by new-env custom environments); none = the
   // built-in counter for `type`.
   counter: none,
@@ -827,7 +865,9 @@
   body,
 ) = context {
   let cfg = beautiframe-config.get()
-  if instructor and not cfg.instructor-mode {
+  // Resolved before the counter is stepped: a hidden environment consumes no
+  // number, so the visible ones stay numbered without gaps.
+  if _instructor-only(instructor, if env-key != none { env-key } else { type }, cfg) and not cfg.instructor-mode {
     return none
   }
   let style-dict = styles.at(cfg.style)
@@ -932,25 +972,34 @@
   display-label: none,
   color: none,
   qr: none,
-  instructor: false,
+  instructor: auto,
+  env-key: none,
   counter-key: none,
   space: none,
   space-height: 3cm,
   body,
 ) = {
+  // The marker follows the block: a hidden environment never steps its counter,
+  // so leaving a reference target behind would point at a number that does not
+  // exist. env-ref falls back to its `missing:` text instead.
   let marker = if label == none {
     []
   } else {
-    metadata((
-      kind: "beautiframe-ref",
-      target-key: str(label),
-      target: label,
-      type: type,
-      display-label: display-label,
-      number: number,
-      ref-number: ref-number,
-      counter-key: counter-key,
-    ))
+    context {
+      let cfg = beautiframe-config.get()
+      if not _instructor-only(instructor, if env-key != none { env-key } else { type }, cfg) or cfg.instructor-mode {
+        metadata((
+          kind: "beautiframe-ref",
+          target-key: str(label),
+          target: label,
+          type: type,
+          display-label: display-label,
+          number: number,
+          ref-number: ref-number,
+          counter-key: counter-key,
+        ))
+      }
+    }
   }
   [
     #marker
@@ -964,6 +1013,7 @@
       color: color,
       qr: qr,
       instructor: instructor,
+      env-key: env-key,
       counter: if counter-key != none { counter(counter-key) } else { none },
       space: space,
       space-height: space-height,
@@ -1198,28 +1248,28 @@
 }
 
 // title: is accepted as a synonym for name: for backward compatibility
-#let theorem(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let theorem(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "theorem", display-label: _plural-label("theorem", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let definition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let definition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "definition", display-label: _plural-label("definition", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let lemma(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let lemma(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "lemma", display-label: _plural-label("lemma", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let proposition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let proposition(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "proposition", display-label: _plural-label("proposition", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let corollary(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let corollary(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "corollary", display-label: _plural-label("corollary", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let remark(name: none, title: none, number: none, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let remark(name: none, title: none, number: none, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "remark", display-label: _plural-label("remark", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let example(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) = context {
+#let example(name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, space: none, space-height: 3cm, body) = context {
   env(type: "example", display-label: _plural-label("example", plural), name: if name != none { name } else { title }, number: number, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
-#let proof(label: none, instructor: false, body) = env(type: "proof", label: label, instructor: instructor, body)
+#let proof(label: none, instructor: auto, body) = env(type: "proof", label: label, instructor: instructor, body)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CUSTOM ENVIRONMENT FACTORY
@@ -1245,23 +1295,30 @@
 /// - base: Which built-in env to inherit styling from ("theorem", "definition", etc.)
 /// - numbered: Whether to auto-number (default: true)
 /// - color: Optional custom color for this environment
+/// - key: Name this environment answers to in `instructor-only-envs`
+///   (default: `label`). Give it the name of the binding you create, so the
+///   list reads like the source: `new-env("Méthode", …, key: "methode")`.
 #let new-env(
   label,
   plural: none,
   base: "theorem",
   numbered: true,
   color: none,
+  key: none,
 ) = {
   // Each custom environment gets its own counter, addressed by key so the
   // central numbering (link-to-section, counter-reset) applies to it too.
   let counter-key = "beautiframe-custom-" + label
   let singular-label = label
+  let default-key = if key == none { label } else { key }
 
   // Default plural to label if not specified
   let plural-label = if plural == none { label } else { plural }
 
   // Return the environment function
-  (name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: false, space: none, space-height: 3cm, body) => {
+  // `env-key: auto` keeps the factory key; a wrapper built on this environment
+  // passes its own so it can be listed separately (see `worked-exercise`).
+  (name: none, title: none, number: auto, label: none, plural: false, qr: none, instructor: auto, env-key: auto, space: none, space-height: 3cm, body) => {
     // Choose singular or plural label
     let display-label = if plural { plural-label } else { singular-label }
 
@@ -1277,6 +1334,7 @@
       label: label,
       qr: qr,
       instructor: instructor,
+      env-key: if env-key == auto { default-key } else { env-key },
       space: space,
       space-height: space-height,
       body,
@@ -1462,16 +1520,16 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Extra environments used in French secondary/post-secondary math courses
-#let propriete = new-env("Propriété", plural: "Propriétés", base: "corollary", numbered: false)
-#let formule   = new-env("Formule",   plural: "Formules",   base: "lemma")
-#let methode   = new-env("Méthode",   plural: "Méthodes",   base: "proposition")
-#let regles    = new-env("Règle",     plural: "Règles",     base: "proposition", numbered: false)
-#let pratique  = new-env("En pratique", plural: "En pratique", base: "example")
-#let guided-example = new-env("Exemple guidé", base: "example")
-#let objectifs = new-env("Objectifs d'apprentissage", base: "lemma", numbered: false)
+#let propriete = new-env("Propriété", plural: "Propriétés", base: "corollary", numbered: false, key: "propriete")
+#let formule   = new-env("Formule",   plural: "Formules",   base: "lemma", key: "formule")
+#let methode   = new-env("Méthode",   plural: "Méthodes",   base: "proposition", key: "methode")
+#let regles    = new-env("Règle",     plural: "Règles",     base: "proposition", numbered: false, key: "regles")
+#let pratique  = new-env("En pratique", plural: "En pratique", base: "example", key: "pratique")
+#let guided-example = new-env("Exemple guidé", base: "example", key: "guided-example")
+#let objectifs = new-env("Objectifs d'apprentissage", base: "lemma", numbered: false, key: "objectifs")
 #let objectif  = objectifs
-#let concepts  = new-env("Concepts clés", base: "lemma", numbered: false)
-#let glossaire = new-env("Glossaire", base: "lemma", numbered: false)
+#let concepts  = new-env("Concepts clés", base: "lemma", numbered: false, key: "concepts")
+#let glossaire = new-env("Glossaire", base: "lemma", numbered: false, key: "glossaire")
 
 #let _default-correction-renderer(title, body) = block(
   width: 100%,
@@ -1494,13 +1552,14 @@
   title: none,
   label: none,
   qr: none,
+  instructor: auto,
   correction: none,
   correction-title: none,
   body,
 ) = context {
   let cfg = beautiframe-config.get()
   let shown-correction-title = if correction-title == none { cfg.correction-label } else { correction-title }
-  pratique(title: title, label: label, qr: qr, [
+  pratique(title: title, label: label, qr: qr, instructor: instructor, env-key: "worked-exercise", [
     #body
     #if correction != none and cfg.instructor-mode [
       #if cfg.correction-renderer != none {
@@ -1522,6 +1581,7 @@
   icon: [🎯],
   label: none,
   qr: none,
+  instructor: auto,
   space: none,
   space-height: 3cm,
   body,
@@ -1543,6 +1603,8 @@
       number: none,
       label: label,
       qr: qr,
+      instructor: instructor,
+      env-key: "defi",
       space: space,
       space-height: space-height,
       body,
@@ -1552,8 +1614,8 @@
 #let défi = defi
 
 // formules — plural shorthand (same counter as formule)
-#let formules(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
-  formule(plural: true, name: if name != none { name } else { title }, label: label, qr: qr, space: space, space-height: space-height, body)
+#let formules(name: none, title: none, label: none, qr: none, instructor: auto, space: none, space-height: 3cm, body) = {
+  formule(plural: true, name: if name != none { name } else { title }, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, body)
 }
 
 // Formulas marked for an end-of-chapter recap.
@@ -1564,11 +1626,11 @@
   formule-recap-state.update(entries => entries + ((label, formula),))
 }
 /// Print formulas collected since the previous recap, then start a new collection.
-#let formules-recap(title: [Formules à retenir], clear: true) = {
+#let formules-recap(title: [Formules à retenir], instructor: auto, clear: true) = {
   context {
     let entries = formule-recap-state.get()
     if entries.len() > 0 {
-      env(type: "lemma", display-label: title, number: none)[
+      env(type: "lemma", display-label: title, number: none, instructor: instructor, env-key: "formules-recap")[
         #for ((label, formula)) in entries {
           block(width: 100%, breakable: false, above: 0.55em, below: 0.7em)[
             #strong(label) :
@@ -1586,15 +1648,15 @@
 #let recap-formules = formules-recap
 
 // Notation / Discussion — unnumbered remark-type environments
-#let notation(name: none, title: none, label: none, qr: none, space: none, space-height: 3cm, body) = {
-  env(type: "remark", display-label: "Notation", name: if name != none { name } else { title }, number: none, label: label, qr: qr, space: space, space-height: space-height, body)
+#let notation(name: none, title: none, label: none, qr: none, instructor: auto, space: none, space-height: 3cm, body) = {
+  env(type: "remark", display-label: "Notation", name: if name != none { name } else { title }, number: none, label: label, qr: qr, instructor: instructor, env-key: "notation", space: space, space-height: space-height, body)
 }
 #let discussion(
   name: none,
   title: none,
   label: none,
   qr: none,
-  instructor: false,
+  instructor: auto,
   correction: none,
   correction-title: none,
   space: none,
@@ -1603,7 +1665,7 @@
 ) = context {
   let cfg = beautiframe-config.get()
   let shown-correction-title = if correction-title == none { cfg.correction-label } else { correction-title }
-  env(type: "remark", display-label: "Discussion", name: if name != none { name } else { title }, number: none, label: label, qr: qr, instructor: instructor, space: space, space-height: space-height, [
+  env(type: "remark", display-label: "Discussion", name: if name != none { name } else { title }, number: none, label: label, qr: qr, instructor: instructor, env-key: "discussion", space: space, space-height: space-height, [
     #body
     #if correction != none and cfg.instructor-mode [
       #if cfg.correction-renderer != none {

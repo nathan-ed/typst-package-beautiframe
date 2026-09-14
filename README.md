@@ -1,6 +1,6 @@
 # beautiframe
 
-[![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.5-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
+[![beautiframe on Typst Universe](https://img.shields.io/badge/Typst_Universe-v._0.4.6-239dad?labelColor=eee)](https://typst.app/universe/package/beautiframe)
 [![Full package manual as PDF](https://img.shields.io/badge/Manual-pdf-333333?labelColor=eee)](https://github.com/nathan-ed/typst-package-beautiframe/blob/39964f0121c9b56740ac11a0e00469afdad759d5/docs/manual.pdf)
 [![Distributed under the MIT license](https://img.shields.io/badge/License-MIT-333333?labelColor=eee)](LICENSE)
 
@@ -54,7 +54,7 @@ Beautiful theorem-like environments with 9 distinctive styles and a French math 
 - **QR sidebar**: attach a QR code column to any environment
 - **Environment references**: label theorem-like blocks and link back to their page
 - **Section-linked numbering**: LaTeX `\numberwithin`-style "Theorem 2.1.3" with per-section reset (opt-in)
-- **Instructor mode**: one source, two documents — corrections and instructor-only blocks hidden in the student build
+- **Instructor mode**: one source, two documents. Corrections and instructor-only blocks are hidden in the student build, and `instructor-only-envs` reserves whole families of environments at once
 - **Student fill space**: blank, ruled lines, or dot grid appended inside any environment
 - **Per-environment colors everywhere**: `env-colors: true` makes every variant of every style follow `theorem-color`, `example-color`, … (not just the `accent` variants); `label-color: "base"` paints the header in the same colour
 - **Perceptual background tints**: `background-tint: auto` lightens each colour until it reaches the same perceived lightness, so a yellow tint reads as strongly as a green one
@@ -65,7 +65,7 @@ Beautiful theorem-like environments with 9 distinctive styles and a French math 
 ## Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.4.5": *
+#import "@preview/beautiframe:0.4.6": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -210,7 +210,7 @@ Voir #env-refs(<def-limite>, <prop-limite>, page: false).
 One-call setup for French secondary math courses:
 
 ```typst
-#import "@preview/beautiframe:0.4.5": *
+#import "@preview/beautiframe:0.4.6": *
 
 // Color version (cours style, blue accent, bold labels, QED square)
 #preset-french-math()
@@ -234,6 +234,49 @@ One-call setup for French secondary math courses:
 ```
 
 `worked-exercise` displays its `correction:` only when `beautiframe-setup(instructor-mode: true)` is active. Configure `correction-renderer: (title, body) => ...` to use a custom correction style.
+
+## Instructor-only environments
+
+Every environment takes `instructor:`, and `instructor-only-envs` lists the ones
+reserved for the instructor build by default:
+
+```typst
+#beautiframe-setup(
+  instructor-mode: false,
+  instructor-only-envs: ("worked-exercise", "methode"),
+)
+
+#methode[Hidden in the student build.]
+#methode(instructor: false)[Shown anyway: the per-env key wins.]
+#remark(instructor: true)[Instructor-only, whatever the list says.]
+```
+
+| `instructor:` | effect |
+| --- | --- |
+| `auto` (default) | consult `instructor-only-envs` for this environment's key |
+| `true` | instructor build only |
+| `false` | always shown, even when the key is listed |
+
+An environment names itself by the function you call: built-ins by their type
+(`"theorem"`, `"definition"`, `"lemma"`, `"proposition"`, `"corollary"`,
+`"remark"`, `"example"`, `"proof"`), the French set by
+`"propriete"`, `"formule"`, `"methode"`, `"regles"`, `"pratique"`,
+`"guided-example"`, `"objectifs"`, `"concepts"`, `"glossaire"`,
+`"worked-exercise"`, `"defi"`, `"notation"`, `"discussion"`,
+`"formules-recap"`, and a `new-env` custom by its `key:` (defaulting to its
+label). A hidden environment is fully absent: it steps no counter, so the
+visible ones stay numbered without gaps, and it leaves no reference target
+behind.
+
+`env-visible(key, instructor: auto)` exposes the same decision, so a project can
+gate environments it defines outside the package on the same list:
+
+```typst
+#let activite(instructor: auto, body) = context {
+  if not env-visible("activite", instructor: instructor) { return }
+  ...
+}
+```
 
 ## QR Sidebar
 
@@ -451,6 +494,19 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 ```
 
 ## Changelog
+
+### [0.4.6] - 2026-09-14
+
+#### Added
+- `instructor-only-envs`: a list of environment keys reserved for the instructor build, so a whole family (`("worked-exercise", "methode")`) is hidden from the student build without annotating every call. An environment names itself by the function you call: built-ins by their type, the French set by `"methode"`, `"propriete"`, `"worked-exercise"`, `"defi"`, …, a `new-env` custom by the new `key:` parameter (default: its label).
+- `env-visible(key, instructor: auto)`: the same visibility decision, exported so a project can gate environments it defines outside the package on the same list.
+- `instructor:` is now on every environment, `worked-exercise`, `defi`, `notation`, `formules` and `formules-recap` included.
+
+#### Changed
+- The `instructor:` parameter defaults to `auto` instead of `false`: `auto` consults `instructor-only-envs`, `true` still means instructor-only, and `false` now forces an environment back into the student build even when its key is listed. Existing documents are unaffected, the list being empty by default.
+
+#### Fixed
+- A labelled instructor-only environment left a reference marker behind while its counter never stepped, so `env-ref` pointed at a number that did not exist. A hidden environment now emits no marker and `env-ref` falls back to its `missing:` text.
 
 ### [0.4.5] - 2026-08-19
 

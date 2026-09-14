@@ -1,4 +1,4 @@
-#import "@preview/beautiframe:0.4.5": *
+#import "@preview/beautiframe:0.4.6": *
 
 #set document(title: "Beautiframe Manual", author: "Nathan Scheinmann")
 
@@ -129,7 +129,7 @@
 #grid(
   columns: (1fr, auto),
   text(size: 10pt)[Nathan Scheinmann],
-  text(size: 10pt, fill: muted)[Version 0.4.5],
+  text(size: 10pt, fill: muted)[Version 0.4.6],
 )
 
 #pagebreak()
@@ -166,7 +166,7 @@
 == Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.4.5": *
+#import "@preview/beautiframe:0.4.6": *
 
 #theorem(name: "Pythagorean")[
   In a right triangle: $a^2 + b^2 = c^2$
@@ -184,7 +184,7 @@
 === French Math Quick Start
 
 ```typst
-#import "@preview/beautiframe:0.4.5": *
+#import "@preview/beautiframe:0.4.6": *
 
 #preset-french-math()   // or #preset-french-math-bw()
 
@@ -1582,7 +1582,7 @@ Three unnumbered environments intended for course structure:
 == Example
 
 ```typst
-#import "@preview/beautiframe:0.4.5": *
+#import "@preview/beautiframe:0.4.6": *
 #preset-french-math()
 
 #theoreme(name: "Pythagore")[
@@ -1817,13 +1817,77 @@ Options:
 
 == Instructor-Only Environments
 
-Every environment (built-ins and `new-env` customs) accepts `instructor: true`
+Every environment (built-ins and `new-env` customs) accepts `instructor:`
 to hide the *entire block* from the student version:
 
 ```typst
 #remark(instructor: true)[
   Insister sur le cas $Delta = 0$ — erreur fréquente au test.
 ]
+```
+
+=== Hiding a whole family at once
+
+Annotating every call gets tedious when a whole kind of environment belongs to
+the instructor build. `instructor-only-envs` lists those kinds once:
+
+```typst
+#beautiframe-setup(
+  instructor-mode: false,
+  instructor-only-envs: ("worked-exercise", "methode"),
+)
+
+#methode[Masquée dans la version élève.]
+#methode(instructor: false)[Affichée quand même : la clé locale l'emporte.]
+#remark(instructor: true)[Réservée, quoi que dise la liste.]
+```
+
+#table(
+  columns: (auto, 1fr),
+  table.header([`instructor:`], [effect]),
+  [`auto` (default)], [consult `instructor-only-envs` for this environment's key],
+  [`true`], [instructor build only],
+  [`false`], [always shown, even when the key is listed],
+)
+
+=== Environment keys
+
+An environment names itself by the function you call:
+
+#table(
+  columns: (auto, 1fr),
+  table.header([source], [key]),
+  [built-ins], [their type: `"theorem"`, `"definition"`, `"lemma"`,
+    `"proposition"`, `"corollary"`, `"remark"`, `"example"`, `"proof"`],
+  [French set], [`"propriete"`, `"formule"`, `"methode"`, `"regles"`,
+    `"pratique"`, `"guided-example"`, `"objectifs"`, `"concepts"`,
+    `"glossaire"`, `"worked-exercise"`, `"defi"`, `"notation"`,
+    `"discussion"`, `"formules-recap"`],
+  [`new-env` customs], [the `key:` parameter, defaulting to the label],
+)
+
+```typst
+#let conjecture = new-env("Conjecture", key: "conjecture")
+#beautiframe-setup(instructor-only-envs: ("conjecture",))
+```
+
+A hidden environment is *fully absent*: it steps no counter, so the visible ones
+stay numbered without gaps, and it leaves no reference target behind: an
+`env-ref` aimed at a hidden environment falls back to its `missing:` text.
+
+=== Gating your own environments
+
+`env-visible(key, instructor: auto)` returns the same decision, so environments
+a document defines outside the package can follow the same list. It reads the
+configuration, so call it in a `context`:
+
+```typst
+#let activite(title: none, instructor: auto, body) = context {
+  if not env-visible("activite", instructor: instructor) { return }
+  // ... your own rendering
+}
+
+#beautiframe-setup(instructor-only-envs: ("activite",))
 ```
 
 #part("Teaching Documents")
