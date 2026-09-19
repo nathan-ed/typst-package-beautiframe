@@ -771,42 +771,82 @@
 
 // Heading-prefix depth: 0 = disabled, true = 1 level, integer = N levels.
 #let _section-depth(cfg) = {
-  if cfg.link-to-section == true { 1 }
-  else if type(cfg.link-to-section) == int { calc.max(0, cfg.link-to-section) }
+  let lts = cfg.link-to-section
+  if lts == true { 1 }
+  else if type(lts) == int { calc.max(0, lts) }
+  else if type(lts) == dictionary { calc.max(1, lts.at("level", default: 1)) }
   else { 0 }
 }
 
-// Selector matching every heading that restarts env numbering (level <= depth).
-#let _reset-selector(depth) = {
-  let sel = heading.where(level: 1)
-  for l in range(2, depth + 1) { sel = sel.or(heading.where(level: l)) }
-  sel
+// Selector matching every heading that restarts env numbering.
+#let _reset-selector(cfg) = {
+  let r = cfg.counter-reset
+  if type(r) == int {
+    heading.where(level: r)
+  } else if type(r) == selector or type(r) == label {
+    r
+  } else if type(r) == dictionary {
+    let lvl = r.at("level", default: 1)
+    heading.where(level: lvl)
+  } else {
+    let depth = calc.max(_section-depth(cfg), 1)
+    let sel = heading.where(level: 1)
+    for l in range(2, depth + 1) { sel = sel.or(heading.where(level: l)) }
+    sel
+  }
 }
 
 // Counter value consumed before the current section started (0 outside sections).
 // Must be called inside a context block.
-#let _section-base(ctr, loc, depth) = {
-  let hs = query(selector(_reset-selector(depth)).before(loc))
+#let _section-base(ctr, loc, cfg) = {
+  let hs = query(selector(_reset-selector(cfg)).before(loc))
   if hs.len() == 0 { 0 } else { ctr.at(hs.last().location()).first() }
 }
 
 // Number shown for the env: the raw count, minus what earlier sections consumed
-// when counter-reset is "section". Must be called inside a context block.
+// when counter-reset is active. Must be called inside a context block.
 #let _env-shown-val(cfg, ctr, val, loc) = {
-  if cfg.counter-reset == "section" {
-    val - _section-base(ctr, loc, calc.max(_section-depth(cfg), 1))
+  if cfg.counter-reset != "manual" and cfg.counter-reset != none and cfg.counter-reset != false {
+    val - _section-base(ctr, loc, cfg)
   } else { val }
 }
 
 // Render the shown number with its heading prefix ("2.1.3") as a string.
 // Must be called inside a context block.
 #let _format-env-number(cfg, shown, loc) = {
-  let depth = _section-depth(cfg)
-  if depth > 0 {
-    let h = counter(heading).at(loc)
-    let levels = h.slice(0, calc.min(depth, h.len())).map(str)
-    if levels.len() > 0 { levels.join(".") + "." + str(shown) } else { str(shown) }
-  } else { str(shown) }
+  let lts = cfg.link-to-section
+  let prefix = none
+  if type(lts) == function {
+    prefix = (lts)(loc)
+  } else if type(lts) == dictionary {
+    let lvl = lts.at("level", default: 1)
+    let is-global = lts.at("global", default: false)
+    if is-global {
+      let count = query(heading.where(level: lvl).before(loc)).len()
+      prefix = str(count)
+    } else {
+      let h = counter(heading).at(loc)
+      let val = if h.len() >= lvl { h.at(lvl - 1) } else { 1 }
+      prefix = str(val)
+    }
+  } else {
+    let depth = _section-depth(cfg)
+    if depth > 0 {
+      let h = counter(heading).at(loc)
+      let levels = h.slice(0, calc.min(depth, h.len())).map(str)
+      if levels.len() > 0 { prefix = levels.join(".") }
+    }
+  }
+
+  if cfg.numbering-format != none and type(cfg.numbering-format) == function {
+    return (cfg.numbering-format)(prefix, shown)
+  }
+
+  if prefix != none and str(prefix) != "" {
+    str(prefix) + "." + str(shown)
+  } else {
+    str(shown)
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

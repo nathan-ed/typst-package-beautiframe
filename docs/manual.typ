@@ -331,6 +331,36 @@ Both settings also apply to custom environments created with `new-env`
 `#formule[...]` renders as "Formule 1.1". References made with `env-ref` /
 `env-refs` display the same section-linked number as the environment itself.
 
+=== Subsection-Only & Continuous Numbering
+
+To link environments to a specific heading level (for instance, subsections only)
+instead of the full hierarchy, configure `link-to-section` with a dictionary:
+
+```typst
+// Number with subsection only, counting continuously across sections (1.1, 2.1, 3.1, 4.1...):
+#beautiframe-setup(
+  link-to-section: (level: 2, global: true),
+  counter-reset: "section",
+)
+
+= Section 1
+== Subsection 1
+#theorem[...] // Theorem 1.1
+#theorem[...] // Theorem 1.2
+== Subsection 2
+#theorem[...] // Theorem 2.1
+
+= Section 2
+== Subsection 3
+#theorem[...] // Theorem 3.1
+== Subsection 4
+#theorem[...] // Theorem 4.1
+```
+
+You can also pass a custom function `loc => ...` to `link-to-section`, or customize
+formatting with `numbering-format: (prefix, num) => ...`. `counter-reset` also
+accepts a specific integer level (e.g. `2`) or an element selector.
+
 == References
 
 Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
@@ -2036,11 +2066,11 @@ The QR sidebar works with all environments including custom ones created with `n
   label-extra: 1cm,              // label overhang into left margin (classic/cours)
 
   // ── Numbering ────────────────────────────────────────────────────────────
-  numbering-format: "1",         // "1" or "1.1" (section.number)
-  link-to-section: false,        // false, true (1 level) or int N: prefix with
-                                 // the first N heading levels ("Theorem 2.1.3")
-  counter-reset: "manual",       // "manual" or "section" (restart at each
-                                 // heading up to the link-to-section depth)
+  numbering-format: "1",         // "1", "1.1", or callback (prefix, num) => ...
+  link-to-section: false,        // false, true, int N, (level: 2, global: true),
+                                 // or callback loc => prefix
+  counter-reset: "manual",       // "manual", "section", integer level (e.g. 2),
+                                 // or element selector
 
   // ── Labels (singular) ────────────────────────────────────────────────────
   theorem-label: "Theorem",

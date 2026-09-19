@@ -155,6 +155,31 @@ to `new-env` custom environments such as `formule`:
 
 `env-ref`/`env-refs` display the same section-linked numbers.
 
+#### Flexible Section & Subsection Linking
+
+`link-to-section` also supports targeting specific heading levels, continuous global counting across sections, and custom formatting:
+
+```typst
+// Link only to subsections (level 2), counting continuously across sections (1.1, 2.1, 3.1, 4.1...):
+#beautiframe-setup(
+  link-to-section: (level: 2, global: true),
+  counter-reset: "section", // or counter-reset: 2
+)
+
+// Or provide a custom prefix function:
+#beautiframe-setup(
+  link-to-section: loc => "§" + str(query(heading.where(level: 2).before(loc)).len()),
+  counter-reset: 2,
+)
+
+// Custom numbering format callback:
+#beautiframe-setup(
+  numbering-format: (prefix, num) => "Problem " + str(prefix) + "-" + str(num),
+)
+```
+
+`counter-reset` accepts `"manual"`, `"section"`, a specific heading level integer (e.g. `2`), or an element selector (`heading.where(level: 2)`).
+
 ### References
 
 Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
