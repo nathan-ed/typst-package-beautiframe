@@ -823,11 +823,10 @@
     let is-global = lts.at("global", default: false)
     if is-global {
       let count = query(heading.where(level: lvl).before(loc)).len()
-      prefix = str(count)
+      prefix = if count > 0 { str(count) } else { none }
     } else {
       let h = counter(heading).at(loc)
-      let val = if h.len() >= lvl { h.at(lvl - 1) } else { 1 }
-      prefix = str(val)
+      prefix = if h.len() >= lvl and h.at(lvl - 1) > 0 { str(h.at(lvl - 1)) } else { none }
     }
   } else {
     let depth = _section-depth(cfg)
@@ -1104,7 +1103,7 @@
   } else {
     let entry = hits.first().value
     let loc = hits.first().location()
-    let cfg = beautiframe-config.get()
+    let cfg = beautiframe-config.at(loc)
     let label-text = if entry.display-label != none { entry.display-label } else { get-env-label(entry.type, cfg) }
     let ctr = if entry.at("counter-key", default: none) != none {
       counter(entry.counter-key)

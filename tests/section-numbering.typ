@@ -76,3 +76,84 @@
   assert.eq(num(<ex5-1>), "5.1")
   assert.eq(num(<ex5-2>), "5.2")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Part 3: Regression test for Issue 1 (theorem before first subsection)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#beautiframe-reset()
+#beautiframe-setup(
+  link-to-section: (level: 2),
+  counter-reset: "section",
+)
+
+= Section Three
+#theorem(label: <thm-before-sub>)[Before subsection]
+== Subsection Six
+#theorem(label: <thm-inside-sub>)[Inside subsection]
+
+#env-ref(<thm-before-sub>, page: false)
+#env-ref(<thm-inside-sub>, page: false)
+
+#context {
+  let num(lbl) = {
+    let l = query(link.where(dest: lbl)).first()
+    l.body.children.first().children.last().text
+  }
+  // Theorem before any subsection must not default to 1.1; it gets plain 1
+  assert.eq(num(<thm-before-sub>), "1")
+  // First theorem inside subsection gets 1.1
+  assert.eq(num(<thm-inside-sub>), "1.1")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Part 4: Test for Issue 2 (mid-document setup changes and earlier references)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#beautiframe-reset()
+#beautiframe-setup(
+  counter-reset: "manual",
+  link-to-section: false,
+  numbering-format: (prefix, num) => "A" + str(num),
+)
+#theorem(label: <thm-mid-a>)[First format]
+#beautiframe-setup(numbering-format: (prefix, num) => "B" + str(num))
+#theorem(label: <thm-mid-b>)[Second format]
+
+#env-ref(<thm-mid-a>, page: false)
+#env-ref(<thm-mid-b>, page: false)
+
+#context {
+  let num(lbl) = {
+    let l = query(link.where(dest: lbl)).first()
+    l.body.children.first().children.last().text
+  }
+  // Ref to theorem under format A retains A1, ref to B has B2
+  assert.eq(num(<thm-mid-a>), "A1")
+  assert.eq(num(<thm-mid-b>), "B2")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Part 5: Test for Issue 3 (callback when link-to-section is disabled / prefix is none)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#beautiframe-reset()
+#beautiframe-setup(
+  link-to-section: false,
+  numbering-format: (prefix, num) => {
+    assert.eq(prefix, none, message: "prefix should be none when link-to-section is false")
+    if prefix != none { "P" + str(prefix) + "-" + str(num) } else { "P" + str(num) }
+  },
+)
+
+#theorem(label: <thm-no-lts>)[No section linking]
+#env-ref(<thm-no-lts>, page: false)
+
+#context {
+  let num(lbl) = {
+    let l = query(link.where(dest: lbl)).first()
+    l.body.children.first().children.last().text
+  }
+  assert.eq(num(<thm-no-lts>), "P1")
+}
+

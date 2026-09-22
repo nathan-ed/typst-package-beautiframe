@@ -358,8 +358,10 @@ instead of the full hierarchy, configure `link-to-section` with a dictionary:
 ```
 
 You can also pass a custom function `loc => ...` to `link-to-section`, or customize
-formatting with `numbering-format: (prefix, num) => ...`. `counter-reset` also
-accepts a specific integer level (e.g. `2`) or an element selector.
+formatting with `numbering-format: (prefix, num) => ...`. When section linking
+is disabled (or before the first matching heading), `prefix` is passed as `none`
+(e.g. `(prefix, num) => if prefix != none { str(prefix) + "-" + str(num) } else { str(num) }`).
+`counter-reset` also accepts a specific integer level (e.g. `2`) or an element selector.
 
 == References
 

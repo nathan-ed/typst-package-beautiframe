@@ -172,13 +172,17 @@ to `new-env` custom environments such as `formule`:
   counter-reset: 2,
 )
 
-// Custom numbering format callback:
+// Custom numbering format callback (prefix is none when section linking is off):
 #beautiframe-setup(
-  numbering-format: (prefix, num) => "Problem " + str(prefix) + "-" + str(num),
+  numbering-format: (prefix, num) => if prefix != none {
+    "Problem " + str(prefix) + "-" + str(num)
+  } else {
+    "Problem " + str(num)
+  },
 )
 ```
 
-`counter-reset` accepts `"manual"`, `"section"`, a specific heading level integer (e.g. `2`), or an element selector (`heading.where(level: 2)`).
+`counter-reset` accepts `"manual"`, `"section"`, a specific heading level integer (e.g. `2`), or an element selector (`heading.where(level: 2)`). Note that in `numbering-format` callbacks, `prefix` is `none` when `link-to-section` is disabled (or before the first matching heading).
 
 ### References
 
