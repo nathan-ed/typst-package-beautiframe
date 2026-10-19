@@ -127,6 +127,15 @@
   // the link-to-section depth (level 1 when link-to-section is off).
   counter-reset: "manual",           // "manual", "section"
 
+  // Which counter numbers each environment. "independent" (default): one
+  // counter per type; "shared": a single counter for every numbered type;
+  // a counter(...): that counter for every type; a dictionary mapping
+  // environment names to a target, e.g. (lemma: "theorem") or
+  // (theorem: "results", lemma: "results"), with an optional `default:`;
+  // a function from the environment name to a target. A target is
+  // "independent", "shared", a built-in type, a group name or a counter.
+  counter-mode: "independent",
+
   // ─────────────────────────────────────────────────────────────────────────
   // LABELS (English default) - Singular
   // ─────────────────────────────────────────────────────────────────────────
@@ -266,7 +275,7 @@
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
-// COUNTERS (Independent for each environment type)
+// COUNTERS (one per type by default, shared or grouped through counter-mode)
 // ═══════════════════════════════════════════════════════════════════════════
 
 #let theorem-counter = counter("beautiframe-theorem")
@@ -276,8 +285,11 @@
 #let corollary-counter = counter("beautiframe-corollary")
 #let remark-counter = counter("beautiframe-remark")
 #let example-counter = counter("beautiframe-example")
+// The counter of counter-mode: "shared".
+#let shared-counter = counter("beautiframe-shared")
 
-// Get counter for a given environment type
+// Independent counter of a built-in environment type; none for a type that
+// is never numbered (proof).
 #let get-counter(env-type) = {
   if env-type == "theorem" { theorem-counter }
   else if env-type == "definition" { definition-counter }
@@ -289,8 +301,64 @@
   else { none }
 }
 
-// Manual reset function
-#let beautiframe-reset() = {
+// A counter-mode target as a counter. `own` is the environment's
+// independent counter. Strings name a built-in type (share its counter),
+// or else a group: every environment mapped to the same name shares it.
+#let _counter-target(target, own) = {
+  if target == "independent" or target == false { own }
+  else if target == "shared" or target == true { shared-counter }
+  else if std.type(target) == counter { target }
+  else if std.type(target) == str {
+    let built-in = get-counter(target)
+    if built-in != none { built-in } else { counter("beautiframe-group-" + target) }
+  } else {
+    panic("beautiframe: a counter target is \"independent\", \"shared\", an "
+      + "environment or group name, or a counter(...); got " + repr(target))
+  }
+}
+
+// Identifies the counter of one environment, independently of the config,
+// so env-ref can resolve it again at the referenced location.
+// - own: the independent counter (none = never numbered)
+// - names: what the environment answers to in a counter-mode dictionary
+// - override: a target that bypasses counter-mode (auto = follow it)
+#let _counter-spec(own, names, override: auto) = (own: own, names: names, override: override)
+
+// The counter that numbers an environment under `cfg`; none = unnumbered.
+#let _env-counter(cfg, spec) = {
+  if spec.override != auto { return _counter-target(spec.override, spec.own) }
+  // Types without a counter of their own (proof) stay unnumbered in every mode.
+  if spec.own == none { return none }
+  let mode = cfg.counter-mode
+  let target = if std.type(mode) == dictionary {
+    let names = spec.names + spec.names.map(lower)
+    let hit = names.find(n => n in mode)
+    if hit != none { mode.at(hit) } else { mode.at("default", default: "independent") }
+  } else if std.type(mode) == function {
+    mode(spec.names.first())
+  } else {
+    mode
+  }
+  _counter-target(target, spec.own)
+}
+
+// Reject a malformed counter-mode at setup time, where the error is readable.
+#let _check-counter-mode(mode) = {
+  let is-target(t) = (t in ("independent", "shared") or std.type(t) in (bool, counter, str))
+  let ok = if std.type(mode) == dictionary {
+    mode.values().all(is-target)
+  } else {
+    mode in ("independent", "shared") or std.type(mode) in (bool, counter, function)
+  }
+  assert(ok, message: "beautiframe: counter-mode is \"independent\", \"shared\", a "
+    + "counter(...), a dictionary of targets or a function; got " + repr(mode))
+}
+
+/// Reset every environment counter: the built-in ones, the shared one, the
+/// counters a counter-mode dictionary or counter names, plus any extra
+/// counter (or counter-mode target name) passed in.
+/// Example: #beautiframe-reset(counter("my-counter"), "results")
+#let beautiframe-reset(..extra) = {
   theorem-counter.update(0)
   definition-counter.update(0)
   lemma-counter.update(0)
@@ -298,6 +366,20 @@
   corollary-counter.update(0)
   remark-counter.update(0)
   example-counter.update(0)
+  shared-counter.update(0)
+  for target in extra.pos() {
+    let c = _counter-target(target, none)
+    if c != none { c.update(0) }
+  }
+  context {
+    let mode = beautiframe-config.get().counter-mode
+    let targets = if std.type(mode) == dictionary { mode.values() } else { (mode,) }
+    for target in targets {
+      if std.type(target) in (str, counter) and target not in ("independent", "shared") {
+        _counter-target(target, none).update(0)
+      }
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -539,6 +621,9 @@
   numbering-format: none,
   link-to-section: none,
   counter-reset: none,
+  counter-mode: none,
+  // Shorthand: true = counter-mode: "shared", false = "independent".
+  counter-shared: none,
   // Labels (singular)
   theorem-label: none,
   definition-label: none,
@@ -665,6 +750,15 @@
     if numbering-format != none { new-cfg.insert("numbering-format", numbering-format) }
     if link-to-section != none { new-cfg.insert("link-to-section", link-to-section) }
     if counter-reset != none { new-cfg.insert("counter-reset", counter-reset) }
+    if counter-mode != none {
+      _check-counter-mode(counter-mode)
+      new-cfg.insert("counter-mode", counter-mode)
+    }
+    if counter-shared != none {
+      assert(std.type(counter-shared) == bool,
+        message: "beautiframe: counter-shared is true or false, got " + repr(counter-shared))
+      new-cfg.insert("counter-mode", if counter-shared { "shared" } else { "independent" })
+    }
     // Labels (singular)
     if theorem-label != none { new-cfg.insert("theorem-label", theorem-label) }
     if definition-label != none { new-cfg.insert("definition-label", definition-label) }
@@ -893,9 +987,8 @@
   instructor: auto,
   // Identifies the environment in `instructor-only-envs`; none = `type`.
   env-key: none,
-  // Counter override (used by new-env custom environments); none = the
-  // built-in counter for `type`.
-  counter: none,
+  // Which counter numbers the environment (see _counter-spec).
+  counter-spec: none,
   // Student fill space appended inside the environment.
   // space: none (default) | "empty" | "lines" | "grid"
   // space-height: height of the fill area
@@ -948,7 +1041,7 @@
   let num = if number == none {
     none
   } else if number == auto {
-    let ctr = if counter != none { counter } else { get-counter(type) }
+    let ctr = _env-counter(cfg, counter-spec)
     if ctr != none {
       ctr.step()
       let val = ctr.get().first() + 1
@@ -1013,11 +1106,23 @@
   qr: none,
   instructor: auto,
   env-key: none,
+  // A counter name: number this environment on counter(counter-key),
+  // whatever counter-mode says.
   counter-key: none,
   space: none,
   space-height: 3cm,
+  // Internal: set by new-env, which numbers on its own counter.
+  _custom-spec: none,
   body,
 ) = {
+  let counter-spec = if _custom-spec != none {
+    _custom-spec
+  } else if counter-key != none {
+    let own = counter(counter-key)
+    _counter-spec(own, (), override: own)
+  } else {
+    _counter-spec(get-counter(type), (type,))
+  }
   // The marker follows the block: a hidden environment never steps its counter,
   // so leaving a reference target behind would point at a number that does not
   // exist. env-ref falls back to its `missing:` text instead.
@@ -1035,7 +1140,7 @@
           display-label: display-label,
           number: number,
           ref-number: ref-number,
-          counter-key: counter-key,
+          counter-spec: counter-spec,
         ))
       }
     }
@@ -1053,7 +1158,7 @@
       qr: qr,
       instructor: instructor,
       env-key: env-key,
-      counter: if counter-key != none { counter(counter-key) } else { none },
+      counter-spec: counter-spec,
       space: space,
       space-height: space-height,
       body,
@@ -1105,11 +1210,7 @@
     let loc = hits.first().location()
     let cfg = beautiframe-config.at(loc)
     let label-text = if entry.display-label != none { entry.display-label } else { get-env-label(entry.type, cfg) }
-    let ctr = if entry.at("counter-key", default: none) != none {
-      counter(entry.counter-key)
-    } else {
-      get-counter(entry.type)
-    }
+    let ctr = _env-counter(cfg, entry.counter-spec)
     let actual-number = if entry.number == none {
       none
     } else if entry.number == auto and ctr != none {
@@ -1334,6 +1435,10 @@
 /// - base: Which built-in env to inherit styling from ("theorem", "definition", etc.)
 /// - numbered: Whether to auto-number (default: true)
 /// - color: Optional custom color for this environment
+/// - counter: Which counter numbers it. auto (default) follows `counter-mode`,
+///   where the environment answers to its `key` and its `label`; otherwise
+///   any counter-mode target: "independent", "shared", a built-in type
+///   ("theorem"), a group name or a counter(...).
 /// - key: Name this environment answers to in `instructor-only-envs`
 ///   (default: `label`). Give it the name of the binding you create, so the
 ///   list reads like the source: `new-env("Méthode", …, key: "methode")`.
@@ -1343,13 +1448,18 @@
   base: "theorem",
   numbered: true,
   color: none,
+  counter: auto,
   key: none,
 ) = {
-  // Each custom environment gets its own counter, addressed by key so the
-  // central numbering (link-to-section, counter-reset) applies to it too.
-  let counter-key = "beautiframe-custom-" + label
   let singular-label = label
   let default-key = if key == none { label } else { key }
+  // Its own counter is addressed by label, so the central numbering
+  // (link-to-section, counter-reset) applies to it too.
+  let counter-spec = _counter-spec(
+    std.counter("beautiframe-custom-" + label),
+    (default-key, label).dedup(),
+    override: counter,
+  )
 
   // Default plural to label if not specified
   let plural-label = if plural == none { label } else { plural }
@@ -1369,7 +1479,7 @@
       color: color,
       name: actual-name,
       number: if number == auto and not numbered { none } else { number },
-      counter-key: counter-key,
+      _custom-spec: counter-spec,
       label: label,
       qr: qr,
       instructor: instructor,
@@ -1381,10 +1491,19 @@
   }
 }
 
-/// Reset a custom environment counter
+/// Reset the counter that numbers a custom environment. When counter-mode
+/// makes it share a counter, that shared counter restarts, so every
+/// environment numbered on it restarts too. Pass the same `key` and
+/// `counter` as to new-env when the environment was created with them.
 /// Example: #reset-env("Conjecture")
-#let reset-env(label) = {
-  counter("beautiframe-custom-" + label).update(0)
+#let reset-env(label, key: none, counter: auto) = context {
+  let spec = _counter-spec(
+    std.counter("beautiframe-custom-" + label),
+    (if key == none { label } else { key }, label).dedup(),
+    override: counter,
+  )
+  let ctr = _env-counter(beautiframe-config.get(), spec)
+  if ctr != none { ctr.update(0) }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1750,13 +1869,13 @@
 /// Reset all built-in counters plus the french-math custom env counters.
 #let beautiframe-reset-french-math() = {
   beautiframe-reset()
-  reset-env("Formule")
-  reset-env("Méthode")
-  reset-env("En pratique")
-  reset-env("Exemple guidé")
-  reset-env("Objectifs d'apprentissage")
-  reset-env("Concepts clés")
-  reset-env("Glossaire")
+  reset-env("Formule", key: "formule")
+  reset-env("Méthode", key: "methode")
+  reset-env("En pratique", key: "pratique")
+  reset-env("Exemple guidé", key: "guided-example")
+  reset-env("Objectifs d'apprentissage", key: "objectifs")
+  reset-env("Concepts clés", key: "concepts")
+  reset-env("Glossaire", key: "glossaire")
   formule-recap-state.update(())
 }
 
