@@ -414,8 +414,12 @@ a `counter(...)`. `default` applies to every environment not listed:
 ```
 
 `counter-mode` also takes a function from the environment name to a target:
-`name => if name == "example" { "independent" } else { "shared" }`. A proof is
-never numbered, in any mode.
+`name => if name == "example" { "independent" } else { "shared" }`. It
+receives a built-in type, or a custom environment's `key:` (its label when it
+has none). Names of built-in environments are matched in any case; any other
+name is a group, so give two custom environments the same group name to number
+them together. A proof is never numbered, in any mode. `counter-mode` and
+`counter-shared` cannot be passed together.
 
 Custom environments created with `new-env` follow `counter-mode` as well, and
 answer to their `key:` and their label (case-insensitive) in a dictionary.
@@ -424,8 +428,8 @@ says, e.g. `new-env("Conjecture", counter: "theorem")`.
 
 `link-to-section`, `counter-reset: "section"`, `env-ref` and `env-refs` work on
 shared and grouped counters. `reset-env("Conjecture")` restarts the counter the
-environment actually uses: when that counter is shared, every environment on
-it restarts too.
+environment actually uses, including one fixed by `counter:`: when that counter
+is shared, every environment on it restarts too.
 
 == References
 
@@ -656,8 +660,8 @@ Custom environments also support plurals:
 ```
 
 Under `counter-mode`, a custom environment may share its counter: `reset-env`
-then restarts that shared counter. If the environment was created with `key:`
-or `counter:`, pass the same to `reset-env`.
+then restarts that shared counter. It finds the `key:` and `counter:` given to
+`new-env` by itself, as soon as the environment is used in the document.
 
 #part("Appearance")
 

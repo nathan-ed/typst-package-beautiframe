@@ -194,6 +194,40 @@
 #check(<ro-prop>, "2")
 #check(<ro-thm>, "1")
 
+// reset-env finds the counter: given to new-env by itself (Prop counts
+// with theorem), even when the reset comes before the environment's first use.
+#fresh()
+#let late = new-env("Late", base: "theorem", counter: "results")
+#theorem[]
+#prop(label: <ra-prop1>)[]
+#reset-env("Prop")
+#theorem(label: <ra-thm>)[]
+#counter("beautiframe-group-results").update(5)
+#reset-env("Late")
+#late(label: <ra-late>)[]
+#check(<ra-prop1>, "2")
+#check(<ra-thm>, "1")
+#check(<ra-late>, "1")
+
+// Case-insensitive on both sides: dictionary keys and built-in targets.
+#fresh()
+#beautiframe-setup(counter-mode: (CONJECTURE: "Theorem", Lemma: "THEOREM"))
+#theorem(label: <ci-thm>)[]
+#conjecture(label: <ci-conj>)[]
+#lemma(label: <ci-lem>)[]
+#check(<ci-thm>, "1")
+#check(<ci-conj>, "2")
+#check(<ci-lem>, "3")
+
+// A function gets a custom environment's key, else its label.
+#fresh()
+#beautiframe-setup(counter-mode: n => if n in ("hypothese", "Conjecture") { "theorem" } else { "independent" })
+#theorem(label: <fn-thm>)[]
+#hypothesis(label: <fn-hyp>)[]
+#conjecture(label: <fn-conj>)[]
+#check(<fn-hyp>, "2")
+#check(<fn-conj>, "3")
+
 // 11. beautiframe-reset: built-in, shared, the counters counter-mode names,
 // and extra counters or group names.
 #fresh()
@@ -214,6 +248,15 @@
 #check(<z-def>, "1")
 #context assert.eq(ext-b.get().first(), 0)
 #context assert.eq(counter("beautiframe-group-extra").get().first(), 0)
+
+// beautiframe-reset also resets the groups a function counter-mode returns.
+#fresh()
+#beautiframe-setup(counter-mode: n => "results")
+#theorem[]
+#theorem[]
+#beautiframe-reset()
+#theorem(label: <zf-thm>)[]
+#check(<zf-thm>, "1")
 
 // 12. Cross-references show the shared numbers.
 #fresh()

@@ -31,5 +31,6 @@ expect_error 'counter-mode: 3' 'counter-mode is "independent", "shared"'
 expect_error 'counter-mode: (lemma: 1)' 'got (lemma: 1)'
 expect_error 'counter-shared: "yes"' 'counter-shared is true or false'
 expect_error 'counter-mode: x => 1' 'a counter target is'
+expect_error 'counter-mode: "shared", counter-shared: true' 'pass counter-mode or counter-shared, not both'
 
 exit $status

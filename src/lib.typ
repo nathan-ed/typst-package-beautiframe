@@ -301,19 +301,27 @@
   else { none }
 }
 
+#let _builtin-types = ("theorem", "definition", "lemma", "proposition", "corollary", "remark", "example")
+
+// Custom environments seen in the document: label -> (key:, counter:), as
+// given to new-env. Read with final() so reset-env and beautiframe-reset
+// know every custom environment, even one first used after the reset.
+#let _custom-envs = state("beautiframe-custom-envs", (:))
+
 // A counter-mode target as a counter. `own` is the environment's
-// independent counter. Strings name a built-in type (share its counter),
-// or else a group: every environment mapped to the same name shares it.
+// independent counter. Strings name a built-in type, case-insensitively
+// (share its counter), or else a group: every environment mapped to the
+// same name shares one counter.
 #let _counter-target(target, own) = {
   if target == "independent" or target == false { own }
   else if target == "shared" or target == true { shared-counter }
   else if std.type(target) == counter { target }
   else if std.type(target) == str {
-    let built-in = get-counter(target)
+    let built-in = get-counter(lower(target))
     if built-in != none { built-in } else { counter("beautiframe-group-" + target) }
   } else {
-    panic("beautiframe: a counter target is \"independent\", \"shared\", an "
-      + "environment or group name, or a counter(...); got " + repr(target))
+    panic("beautiframe: a counter target is \"independent\", \"shared\", a "
+      + "built-in environment or group name, or a counter(...); got " + repr(target))
   }
 }
 
@@ -324,6 +332,15 @@
 // - override: a target that bypasses counter-mode (auto = follow it)
 #let _counter-spec(own, names, override: auto) = (own: own, names: names, override: override)
 
+// Spec of a new-env custom environment. Its own counter is addressed by
+// label, so the central numbering (link-to-section, counter-reset) applies
+// to it too; it answers to its key first, then its label.
+#let _custom-counter-spec(label, key, override) = _counter-spec(
+  counter("beautiframe-custom-" + label),
+  (if key == none { label } else { key }, label).dedup(),
+  override: override,
+)
+
 // The counter that numbers an environment under `cfg`; none = unnumbered.
 #let _env-counter(cfg, spec) = {
   if spec.override != auto { return _counter-target(spec.override, spec.own) }
@@ -331,8 +348,10 @@
   if spec.own == none { return none }
   let mode = cfg.counter-mode
   let target = if std.type(mode) == dictionary {
-    let names = spec.names + spec.names.map(lower)
-    let hit = names.find(n => n in mode)
+    // Exact key first, then case-insensitive on both sides.
+    let lowered = spec.names.map(lower)
+    let hit = spec.names.find(n => n in mode)
+    if hit == none { hit = mode.keys().find(k => lower(k) in lowered) }
     if hit != none { mode.at(hit) } else { mode.at("default", default: "independent") }
   } else if std.type(mode) == function {
     mode(spec.names.first())
@@ -344,7 +363,7 @@
 
 // Reject a malformed counter-mode at setup time, where the error is readable.
 #let _check-counter-mode(mode) = {
-  let is-target(t) = (t in ("independent", "shared") or std.type(t) in (bool, counter, str))
+  let is-target(t) = std.type(t) in (bool, counter, str)
   let ok = if std.type(mode) == dictionary {
     mode.values().all(is-target)
   } else {
@@ -354,9 +373,10 @@
     + "counter(...), a dictionary of targets or a function; got " + repr(mode))
 }
 
-/// Reset every environment counter: the built-in ones, the shared one, the
-/// counters a counter-mode dictionary or counter names, plus any extra
-/// counter (or counter-mode target name) passed in.
+/// Reset every environment counter: the built-in ones, the shared one, every
+/// counter counter-mode can choose (dictionary values, the counter, what a
+/// function returns for each environment), the counters fixed by new-env's
+/// `counter:`, plus any extra counter (or counter-mode target name) passed in.
 /// Example: #beautiframe-reset(counter("my-counter"), "results")
 #let beautiframe-reset(..extra) = {
   theorem-counter.update(0)
@@ -373,7 +393,15 @@
   }
   context {
     let mode = beautiframe-config.get().counter-mode
-    let targets = if std.type(mode) == dictionary { mode.values() } else { (mode,) }
+    let customs = _custom-envs.final().values()
+    let targets = if std.type(mode) == dictionary {
+      mode.values()
+    } else if std.type(mode) == function {
+      (_builtin-types + customs.map(e => e.key)).map(mode)
+    } else {
+      (mode,)
+    }
+    targets += customs.map(e => e.counter).filter(c => c != auto)
     for target in targets {
       if std.type(target) in (str, counter) and target not in ("independent", "shared") {
         _counter-target(target, none).update(0)
@@ -755,6 +783,8 @@
       new-cfg.insert("counter-mode", counter-mode)
     }
     if counter-shared != none {
+      assert(counter-mode == none,
+        message: "beautiframe: pass counter-mode or counter-shared, not both")
       assert(std.type(counter-shared) == bool,
         message: "beautiframe: counter-shared is true or false, got " + repr(counter-shared))
       new-cfg.insert("counter-mode", if counter-shared { "shared" } else { "independent" })
@@ -1453,13 +1483,8 @@
 ) = {
   let singular-label = label
   let default-key = if key == none { label } else { key }
-  // Its own counter is addressed by label, so the central numbering
-  // (link-to-section, counter-reset) applies to it too.
-  let counter-spec = _counter-spec(
-    std.counter("beautiframe-custom-" + label),
-    (default-key, label).dedup(),
-    override: counter,
-  )
+  let counter-spec = _custom-counter-spec(label, key, counter)
+  let registration = (key: default-key, counter: counter)
 
   // Default plural to label if not specified
   let plural-label = if plural == none { label } else { plural }
@@ -1473,6 +1498,10 @@
 
     // Render using the base environment type while preserving its configured label.
     let actual-name = if name != none { name } else { title }
+    _custom-envs.update(r => {
+      if singular-label not in r { r.insert(singular-label, registration) }
+      r
+    })
     env(
       type: base,
       display-label: display-label,
@@ -1493,14 +1522,16 @@
 
 /// Reset the counter that numbers a custom environment. When counter-mode
 /// makes it share a counter, that shared counter restarts, so every
-/// environment numbered on it restarts too. Pass the same `key` and
-/// `counter` as to new-env when the environment was created with them.
+/// environment numbered on it restarts too. The `key` and `counter` given to
+/// new-env are found automatically once the environment is used anywhere in
+/// the document; pass them only for an environment that is never rendered.
 /// Example: #reset-env("Conjecture")
 #let reset-env(label, key: none, counter: auto) = context {
-  let spec = _counter-spec(
-    std.counter("beautiframe-custom-" + label),
-    (if key == none { label } else { key }, label).dedup(),
-    override: counter,
+  let known = _custom-envs.final().at(label, default: (key: none, counter: auto))
+  let spec = _custom-counter-spec(
+    label,
+    if key != none { key } else { known.key },
+    if counter != auto { counter } else { known.counter },
   )
   let ctr = _env-counter(beautiframe-config.get(), spec)
   if ctr != none { ctr.update(0) }
@@ -1869,13 +1900,13 @@
 /// Reset all built-in counters plus the french-math custom env counters.
 #let beautiframe-reset-french-math() = {
   beautiframe-reset()
-  reset-env("Formule", key: "formule")
-  reset-env("Méthode", key: "methode")
-  reset-env("En pratique", key: "pratique")
-  reset-env("Exemple guidé", key: "guided-example")
-  reset-env("Objectifs d'apprentissage", key: "objectifs")
-  reset-env("Concepts clés", key: "concepts")
-  reset-env("Glossaire", key: "glossaire")
+  reset-env("Formule")
+  reset-env("Méthode")
+  reset-env("En pratique")
+  reset-env("Exemple guidé")
+  reset-env("Objectifs d'apprentissage")
+  reset-env("Concepts clés")
+  reset-env("Glossaire")
   formule-recap-state.update(())
 }
 

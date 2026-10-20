@@ -210,16 +210,16 @@ By default each environment type counts on its own (`counter-mode: "independent"
 #beautiframe-setup(counter-mode: name => if name == "example" { "independent" } else { "shared" })
 ```
 
-A target is `"independent"` (the environment's own counter), `"shared"`, the name of a built-in environment (share its counter), any other name (a group: every environment mapped to it shares one counter), or a `counter(...)`. A proof is never numbered, in any mode.
+A target is `"independent"` (the environment's own counter), `"shared"`, the name of a built-in environment, in any case (share its counter), any other name (a group: every environment mapped to it shares one counter, so give two custom environments the same group name to number them together), or a `counter(...)`. A function receives the environment's name: a built-in type, or a custom environment's `key:` (its label when it has none). A proof is never numbered, in any mode. `counter-mode` and `counter-shared` cannot be passed together.
 
-`new-env` custom environments follow `counter-mode` too, answering to their `key:` and their label (case-insensitive) in a dictionary. `counter:` fixes the counter of one custom environment, whatever `counter-mode` says:
+`new-env` custom environments follow `counter-mode` too, answering to their `key:` and their label in a dictionary (case-insensitive). `counter:` fixes the counter of one custom environment, whatever `counter-mode` says:
 
 ```typst
 #let conjecture = new-env("Conjecture", counter: "theorem")  // counts with theorems
 #let axiom = new-env("Axiom", counter: "independent")        // always its own counter
 ```
 
-`link-to-section`, `counter-reset: "section"`, `env-ref` and `env-refs` all work on shared and grouped counters. `reset-env("Conjecture")` restarts the counter the environment actually uses: when it shares one, every environment on that counter restarts with it.
+`link-to-section`, `counter-reset: "section"`, `env-ref` and `env-refs` all work on shared and grouped counters. `reset-env("Conjecture")` restarts the counter the environment actually uses, including one fixed by `counter:`: when it shares one, every environment on that counter restarts with it. `beautiframe-reset()` resets every counter `counter-mode` or `counter:` can choose.
 
 ### References
 
@@ -570,7 +570,7 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 - `beautiframe-reset` also resets the shared counter, the counters named in `counter-mode`, and any extra counters or group names passed to it.
 
 #### Changed
-- `reset-env` resets the counter the environment actually uses, which under `counter-mode` may be a shared or grouped one. It takes the same `key:` and `counter:` as `new-env`.
+- `reset-env` resets the counter the environment actually uses, which under `counter-mode` may be a shared or grouped one. It finds the `key:` and `counter:` given to `new-env` by itself.
 
 ### [0.4.6] - 2026-09-14
 
