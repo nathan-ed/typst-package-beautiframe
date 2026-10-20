@@ -184,6 +184,43 @@ to `new-env` custom environments such as `formule`:
 
 `counter-reset` accepts `"manual"`, `"section"`, a specific heading level integer (e.g. `2`), or an element selector (`heading.where(level: 2)`). Note that in `numbering-format` callbacks, `prefix` is `none` when `link-to-section` is disabled (or before the first matching heading).
 
+#### Shared and Grouped Counters
+
+By default each environment type counts on its own (`counter-mode: "independent"`): Theorem 1, Definition 1, Lemma 1, Theorem 2. `counter-mode` changes which counter numbers each environment:
+
+```typst
+// One counter for every numbered environment: Theorem 1, Definition 2, Lemma 3
+#beautiframe-setup(counter-mode: "shared")   // or counter-shared: true
+
+// A counter of your own, for every environment
+#let results = counter("results")
+#beautiframe-setup(counter-mode: results)
+
+// Lemma, proposition and corollary count with theorem; the others stay independent
+#beautiframe-setup(counter-mode: (lemma: "theorem", proposition: "theorem", corollary: "theorem"))
+
+// Named groups and counters; `default` applies to every environment not listed
+#beautiframe-setup(counter-mode: (
+  theorem: "results", lemma: "results",
+  definition: counter("defs"), example: counter("defs"),
+  default: "shared",
+))
+
+// A function from the environment name to a target
+#beautiframe-setup(counter-mode: name => if name == "example" { "independent" } else { "shared" })
+```
+
+A target is `"independent"` (the environment's own counter), `"shared"`, the name of a built-in environment, in any case (share its counter), any other name (a group: every environment mapped to it shares one counter, so give two custom environments the same group name to number them together), or a `counter(...)`. A function receives the environment's name: a built-in type, or a custom environment's `key:` (its label when it has none). A proof is never numbered, in any mode. `counter-mode` and `counter-shared` cannot be passed together.
+
+`new-env` custom environments follow `counter-mode` too, answering to their `key:` and their label in a dictionary (case-insensitive). `counter:` fixes the counter of one custom environment, whatever `counter-mode` says:
+
+```typst
+#let conjecture = new-env("Conjecture", counter: "theorem")  // counts with theorems
+#let axiom = new-env("Axiom", counter: "independent")        // always its own counter
+```
+
+`link-to-section`, `counter-reset: "section"`, `env-ref` and `env-refs` all work on shared and grouped counters. `reset-env("Conjecture")` restarts the counter the environment actually uses, including one fixed by `counter:`: when it shares one, every environment on that counter restarts with it. `beautiframe-reset()` resets every counter `counter-mode` or `counter:` can choose.
+
 ### References
 
 Add a Typst label to any environment, then reference it with `#env-ref(<label>)`.
@@ -516,13 +553,24 @@ See the [full manual](https://github.com/nathan-ed/typst-package-beautiframe/blo
 ## Utility Functions
 
 ```typst
-#beautiframe-reset()                // Reset all built-in counters to 0
+#beautiframe-reset()                // Reset all built-in, shared and counter-mode counters to 0
+#beautiframe-reset(counter("x"), "results") // ...plus extra counters or group names
 #beautiframe-reset-french-math()    // Reset built-in + French env counters
-#reset-env("Conjecture")            // Reset a specific custom env counter
+#reset-env("Conjecture")            // Reset the counter a custom env uses
 #beautiframe-reset-config()         // Reset every setting to its default value
 ```
 
 ## Changelog
+
+### [Unreleased]
+
+#### Added
+- `counter-mode` on `beautiframe-setup`: `"independent"` (default), `"shared"` (one counter for every numbered environment; `counter-shared: true` is a shorthand), a `counter(...)`, a dictionary mapping environments to a built-in type, a group name or a counter (with an optional `default`), or a function. Works with `link-to-section`, `counter-reset`, `env-ref` and `env-refs`. Contributed by [@RythenGlyth](https://github.com/RythenGlyth) in [#1](https://github.com/nathan-ed/typst-package-beautiframe/pull/1)
+- `counter:` on `new-env`, to fix the counter of one custom environment whatever `counter-mode` says.
+- `beautiframe-reset` also resets the shared counter, the counters named in `counter-mode`, and any extra counters or group names passed to it.
+
+#### Changed
+- `reset-env` resets the counter the environment actually uses, which under `counter-mode` may be a shared or grouped one. It finds the `key:` and `counter:` given to `new-env` by itself.
 
 ### [0.4.6] - 2026-09-14
 
